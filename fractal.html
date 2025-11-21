@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Smooth 3D Newton Iso-Surface – Optimized</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #050608;
+    color: #ddd;
+    font-family: system-ui, sans-serif;
+  }
+  #ui {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(10, 10, 16, 0.9);
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(200,200,255,0.2);
+    z-index: 10;
+    font-size: 13px;
+  }
+  #ui label {
+    display: block;
+    margin-bottom: 4px;
+  }
+  #ui input[type=range] {
+    width: 180px;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<div id="ui">
+  <label>
+    n range (along z):
+    <input id="nRange" type="range" min="0.1" max="6.0" step="0.01" value="3.0">
+    <span id="nRangeValue">3.00</span>
+  </label>
+  <label>
+    iso level (0 = deep basins, 1 = near boundary):
+    <input id="isoLevel" type="range" min="0" max="1" step="0.01" value="0.55">
+    <span id="isoLevelValue">0.55</span>
+  </label>
+  <label>
+    q parameter:
+    <input id="qParam" type="range" min="-2.0" max="2.0" step="0.01" value="0.0">
+    <span id="qParamValue">0.00</span>
+  </label>
+  <label>
+    p parameter:
+    <input id="pParam" type="range" min="-2.0" max="2.0" step="0.01" value="0.0">
+    <span id="pParamValue">0.00</span>
+  </label>
+  <label>
+    animation speed:
+    <input id="speedParam" type="range" min="0.1" max="5.0" step="0.1" value="2.0">
+    <span id="speedParamValue">2.0</span>
+  </label>
+  <label>
+    FPS target:
+    <input id="fpsTarget" type="range" min="15" max="60" step="5" value="30">
+    <span id="fpsTargetValue">30</span>
+  </label>
+  <label>
+    <input id="autoDynamicRes" type="checkbox" checked>
+    Auto dynamic resolution
+  </label>
+  <label>
+    Manual resolution scale:
+    <input id="manualResScale" type="range" min="0.1" max="1.0" step="0.05" value="1.0" disabled>
+    <span id="manualResScaleValue">100%</span>
+  </label>
+  <label>
+    <input id="enableSupersampling" type="checkbox">
+    2x2 Supersampling (high quality)
+  </label>
+  <label>
+    function:
+    <select id="functionSelect" style="width:180px; padding:2px; background:#223; color:#ddd; border:1px solid #667; border-radius:3px;">
+      <option value="0">sin(nw²+q)·w + cos(pw) - w + 1</option>
+      <option value="1">n·w³ - q·w² + p</option>
+      <option value="2">ζ-approx: w^n + w^(-q) + p</option>
+    </select>
+  </label>
+  <label>
+    transparent color:
+    <input id="colorPicker" type="color" value="#000000">
+  </label>
+  <label>
+    transparency tolerance:
+    <input id="toleranceParam" type="range" min="0.0" max="1.0" step="0.01" value="0.1">
+    <span id="toleranceValue">0.10</span>
+  </label>
+  <label>
+    color scheme:
+    <select id="colorScheme" style="width:180px; padding:2px; background:#223; color:#ddd; border:1px solid #667; border-radius:3px;">
+      <option value="0">Angle-based (rainbow)</option>
+      <option value="1">Depth gradient</option>
+      <option value="2">Iterations heatmap</option>
+      <option value="3">Solid color</option>
+    </select>
+  </label>
+  <label>
+    solid color:
+    <input id="solidColor" type="color" value="#ff6600">
+  </label>
+  <label>
+    shading mode:
+    <select id="shadingMode" style="width:180px; padding:2px; background:#223; color:#ddd; border:1px solid #667; border-radius:3px;">
+      <option value="0">Flat</option>
+      <option value="1">Normal-based lighting</option>
+      <option value="2">Ambient occlusion</option>
+    </select>
+  </label>
+  <label>
+    brightness:
+    <input id="brightness" type="range" min="0.5" max="2.0" step="0.1" value="1.0">
+    <span id="brightnessValue">1.0</span>
+  </label>
+  <label>
+    contrast:
+    <input id="contrast" type="range" min="0.5" max="2.0" step="0.1" value="1.0">
+    <span id="contrastValue">1.0</span>
+  </label>
+  <label>
+    background color:
+    <input id="bgColor" type="color" value="#050608">
+  </label>
+  <label>
+    fog amount:
+    <input id="fogAmount" type="range" min="0.0" max="1.0" step="0.05" value="0.3">
+    <span id="fogAmountValue">0.30</span>
+  </label>
+  <div style="margin-top:8px;">
+    <button id="animateBtn" style="padding:4px 12px; cursor:pointer; border-radius:4px; background:#334; color:#ddd; border:1px solid #667;">
+      Toggle Sin Animation
+    </button>
+  </div>
+  <div style="margin-top:6px; opacity:0.8">
+    z axis = parameter n(z) (smooth)<br>
+    Click canvas → mouse look<br>
+    WASD = move, Q/E = down/up
+  </div>
+</div>
+<canvas id="glcanvas"></canvas>
+
+<!-- Vertex shader -->
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 aPosition;
+void main() {
+    gl_Position = vec4(aPosition, 0.0, 1.0);
+}
+</script>
+
+<!-- Fragment shader -->
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+
+uniform vec2  uResolution;
+uniform vec3  uCamPos;
+uniform vec3  uCamForward;
+uniform vec3  uCamRight;
+uniform vec3  uCamUp;
+uniform float uFov;        // tan(FOV/2)
+uniform float uBoxR;       // half-size of cube in x,y,z
+uniform float uNRange;     // parameter range for n(z)
+uniform float uIsoLevel;   // 0..1 iso level on smooth field
+uniform float uQ;          // q parameter
+uniform float uP;          // p parameter
+uniform vec3  uTransparentColor; // color to make transparent
+uniform float uTolerance;  // tolerance for color matching
+uniform int   uFunction;   // which function to use
+uniform int   uColorScheme; // which color scheme to use
+uniform vec3  uSolidColor;  // solid color option
+uniform int   uShadingMode; // shading mode
+uniform float uBrightness;  // brightness multiplier
+uniform float uContrast;    // contrast multiplier
+uniform vec3  uBgColor;     // background color
+uniform float uFogAmount;   // fog amount
+uniform float uTime;        // time for temporal jittering
+uniform int   uSupersampling; // 0=off, 1=2x2 supersampling
+
+// ------------- Complex ops: z = vec2(x,y) -------------
+
+// Hash for spatial anti-aliasing (deterministic per pixel)
+float hash13(vec3 p3) {
+    p3 = fract(p3 * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 cMul(vec2 a, vec2 b) {
+    return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x);
+}
+
+vec2 cDiv(vec2 a, vec2 b) {
+    float d = dot(b,b);
+    return vec2(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (d + 1e-8);
+}
+
+vec2 cSqr(vec2 z) {
+    return cMul(z,z);
+}
+
+vec2 cSin(vec2 z) {
+    float a = z.x;
+    float b = z.y;
+    float sh = 0.5*(exp(b) - exp(-b));
+    float ch = 0.5*(exp(b) + exp(-b));
+    return vec2(sin(a)*ch, cos(a)*sh);
+}
+
+vec2 cCos(vec2 z) {
+    float a = z.x;
+    float b = z.y;
+    float sh = 0.5*(exp(b) - exp(-b));
+    float ch = 0.5*(exp(b) + exp(-b));
+    return vec2(cos(a)*ch, -sin(a)*sh);
+}
+
+vec2 cPow(vec2 z, float n) {
+    float r = length(z);
+    float theta = atan(z.y, z.x);
+    float rn = pow(r, n);
+    return vec2(rn * cos(n * theta), rn * sin(n * theta));
+}
+
+vec2 cLog(vec2 z) {
+    float r = length(z);
+    float theta = atan(z.y, z.x);
+    return vec2(log(r), theta);
+}
+
+// ------------- Color from complex angle -------------
+
+vec3 angleColor(vec2 z) {
+    float ang = atan(z.y, z.x); // [-pi, pi]
+    float u = (ang + 3.14159265) / (2.0 * 3.14159265); // [0,1]
+    return vec3(
+        0.5 + 0.5*cos(6.2831*(u + 0.0)),
+        0.5 + 0.5*cos(6.2831*(u + 0.33)),
+        0.5 + 0.5*cos(6.2831*(u + 0.66))
+    );
+}
+
+// ------------- Smooth Newton field -------------
+// f(w; n, q, p) = sin(n w^2 + q) * w + cos(p w) - w + 1
+// We do K fixed iterations and build a smooth scalar
+// phi = normalized average log|f(w_k; n, q, p)|.
+
+const int K = 20; // higher iterations for sharper basin boundaries and fewer holes
+
+void evalField(vec3 p, out float phiNorm, out vec3 baseColor, out int iterCount, out float depth) {
+    float R = uBoxR;
+
+    // map xy in cube [-R,R] into something like [-2.5,2.5]^2
+    float scaleXY = 2.5;
+    vec2 w = vec2(p.x, p.y) / R * scaleXY;
+
+    // parameter n varies along z only (true n(z))
+    // p.z is in [-R, R], map to [0,1]
+    float zNorm = clamp((p.z / (2.0 * R)) + 0.5, 0.0, 1.0);
+    
+    // center around 1.0 and use uNRange as a span
+    float n = 1.0 + (zNorm - 0.5) * uNRange;
+
+    vec2 wCurr = w;
+    float acc = 0.0;
+    int   steps = 0;
+    vec2 f = vec2(0.0);  // Declare outside loop for final residual access
+    vec2 fp;
+
+    for (int i = 0; i < K; ++i) {
+        
+        if (uFunction == 0) {
+            // Function 0: sin(n w^2 + q) * w + cos(p w) - w + 1
+            vec2 w2  = cSqr(wCurr);
+            vec2 arg = w2 * n + vec2(uQ, 0.0);
+            vec2 s   = cSin(arg);
+            vec2 c   = cCos(arg);
+            
+            vec2 arg2 = wCurr * uP;
+            vec2 cos_pw = cCos(arg2);
+            vec2 sin_pw = cSin(arg2);
+
+            f = cMul(s, wCurr) + cos_pw - wCurr + vec2(1.0, 0.0);
+
+            // f' = g'(w)*w + g(w) + h'(w) - 1
+            vec2 two_n_w = vec2(2.0*n, 0.0) * wCurr;
+            vec2 gPrime  = cMul(c, two_n_w);
+            vec2 hPrime  = cMul(sin_pw, vec2(-uP, 0.0));
+            fp = cMul(gPrime, wCurr) + s + hPrime - vec2(1.0, 0.0);
+        } else if (uFunction == 1) {
+            // Function 1: n*w^3 - q*w^2 + p
+            vec2 w2 = cSqr(wCurr);
+            vec2 w3 = cMul(w2, wCurr);
+            f = vec2(n, 0.0) * w3 - vec2(uQ, 0.0) * w2 + vec2(uP, 0.0);
+            
+            // f' = 3*n*w^2 - 2*q*w
+            fp = vec2(3.0 * n, 0.0) * w2 - vec2(2.0 * uQ, 0.0) * wCurr;
+        } else {
+            // Function 2: zeta-approximation: w^n + w^(-q) + p
+            vec2 wn = cPow(wCurr, n);
+            vec2 winvq = cPow(wCurr, -uQ);
+            f = wn + winvq + vec2(uP, 0.0);
+            
+            // f' = n*w^(n-1) - q*w^(-q-1)
+            vec2 term1 = vec2(n, 0.0) * cPow(wCurr, n - 1.0);
+            vec2 term2 = vec2(-uQ, 0.0) * cPow(wCurr, -uQ - 1.0);
+            fp = term1 + term2;
+        }
+
+        float err = length(f);
+        acc += log(err + 1e-6);
+        steps = i + 1;
+
+        float denom = dot(fp, fp);
+        if (denom < 1e-10) {
+            break;
+        }
+        
+        // Check if converged
+        if (err < 1e-8) {
+            break;
+        }
+
+        vec2 step = cDiv(f, fp);
+        
+        // Clamp step size to prevent float precision extremes
+        float stepLen = length(step);
+        if (stepLen > 10.0) {
+            step = step * (10.0 / stepLen); // Cap to reasonable range
+        }
+        
+        wCurr = wCurr - step;
+        
+        // Divergence check: if w grows too large, treat as escaped
+        if (length(wCurr) > 100.0) {
+            break;
+        }
+    }
+
+    if (steps == 0) steps = 1;
+    
+    // Phase 2: Smooth field using escape-time smoothing
+    // Use logarithm of final residual for smooth interpolation between iteration bands
+    float finalErr = length(f);
+    float smoothFactor = log(finalErr + 1.0) / log(2.0);
+    
+    // Combine iteration count with fractional smoothing
+    float phi = (float(steps) + smoothFactor) / (float(K) + 3.0);
+    phi = clamp(phi, 0.0, 1.0);
+
+    phiNorm = phi;
+    baseColor = angleColor(wCurr);
+    iterCount = steps;
+    depth = zNorm;  // z-based depth for planar coloring
+}
+
+// Apply color scheme
+vec3 applyColorScheme(vec3 angleCol, int iters, float depth) {
+    if (uColorScheme == 0) {
+        // Angle-based (rainbow)
+        return angleCol;
+    } else if (uColorScheme == 1) {
+        // Depth gradient (blue to red)
+        float t = clamp(depth, 0.0, 1.0);
+        return mix(vec3(0.1, 0.3, 0.8), vec3(0.9, 0.2, 0.1), t);
+    } else if (uColorScheme == 2) {
+        // Iterations heatmap (adjusted for K=20)
+        float t = clamp(float(iters) / float(K), 0.0, 1.0);
+        vec3 cold = vec3(0.0, 0.0, 0.5);
+        vec3 warm = vec3(1.0, 0.9, 0.0);
+        vec3 hot = vec3(1.0, 0.1, 0.0);
+        return mix(mix(cold, warm, t * 2.0), hot, max(0.0, t * 2.0 - 1.0));
+    } else {
+        // Solid color
+        return uSolidColor;
+    }
+}
+
+// ------------- Ray–box intersection (axis-aligned cube) -------------
+
+bool intersectBox(vec3 ro, vec3 rd, float R,
+                  out float t0, out float t1) {
+    vec3 invD = 1.0 / rd;
+
+    vec3 tMin = (vec3(-R) - ro) * invD;
+    vec3 tMax = (vec3( R) - ro) * invD;
+
+    vec3 t1v = min(tMin, tMax);
+    vec3 t2v = max(tMin, tMax);
+
+    t0 = max(max(t1v.x, t1v.y), max(t1v.z, 0.0));
+    t1 = min(min(t2v.x, t2v.y), t2v.z);
+
+    return t1 > t0;
+}
+
+// ------------- Iso-surface raymarch on smooth phiNorm -------------
+
+const int   MAX_RAY_STEPS = 80;   // Reduced since we terminate early on solid hits
+const int   BINARY_STEPS  = 6;    // More refinement steps
+
+// Directional derivative for head-on detection
+float directionalDerivative(vec3 p, vec3 dir) {
+    float h = 0.01;
+    float phi0, phi1;
+    vec3 tmpC;
+    int tmpI;
+    float tmpD;
+    
+    evalField(p + dir * h, phi0, tmpC, tmpI, tmpD);
+    evalField(p - dir * h, phi1, tmpC, tmpI, tmpD);
+    
+    return (phi0 - phi1) / (2.0 * h);
+}
+
+// Main raymarching function - returns color for a given ray
+vec4 traceRay(vec3 ro, vec3 dir) {
+    // Spatial jitter for anti-aliasing (when supersampling is OFF)
+    float jitter = 0.0;
+    if (uSupersampling == 0) {
+        jitter = hash13(gl_FragCoord.xyz) * 0.5;
+    }
+    
+    // Start raymarching from camera with closer view distance
+    float t0 = 0.01 + jitter * 0.005;  // Small spatial offset
+    float t1 = 10.0;  // View distance
+
+    bool  hit = false;
+    float hitT = 0.0;
+    vec3  hitColor = vec3(0.0);
+
+    float prevPhi = 0.0;
+    vec3  prevColor = vec3(0.0);
+    float prevT = t0;
+    bool  havePrev = false;
+    int   prevIters = 0;
+    float prevDepth = 0.0;
+    
+    float t = t0;
+
+    for (int i = 0; i < MAX_RAY_STEPS; ++i) {
+        if (t > t1) break;
+        vec3 p = ro + dir * t;
+
+        float phi;
+        vec3  c;
+        int   iters;
+        float depth;
+        evalField(p, phi, c, iters, depth);
+
+        if (havePrev) {
+            float g0 = prevPhi - uIsoLevel;
+            float g1 = phi     - uIsoLevel;
+            
+            // Check for rapid field change that might hide a crossing
+            float phiChange = abs(phi - prevPhi);
+            if (phiChange > 0.3 && g0 * g1 >= 0.0) {
+                // Sample midpoint to check for thin feature
+                float midT = 0.5 * (prevT + t);
+                vec3 midP = ro + dir * midT;
+                float phiMid;
+                vec3 tmpC;
+                int tmpI;
+                float tmpD;
+                evalField(midP, phiMid, tmpC, tmpI, tmpD);
+                
+                float gMid = phiMid - uIsoLevel;
+                // If midpoint has opposite sign from either end, we have a crossing
+                if (g0 * gMid < 0.0 || g1 * gMid < 0.0) {
+                    // Update to use midpoint as new boundary
+                    if (g0 * gMid < 0.0) {
+                        phi = phiMid;
+                        c = tmpC;
+                        iters = tmpI;
+                        depth = tmpD;
+                        t = midT;
+                        g1 = gMid;
+                    } else {
+                        prevPhi = phiMid;
+                        prevColor = tmpC;
+                        prevIters = tmpI;
+                        prevDepth = tmpD;
+                        prevT = midT;
+                        g0 = gMid;
+                    }
+                }
+            }
+            
+            if (g0 * g1 < 0.0) {
+                // Hybrid refinement: bisection + Newton-on-ray for sharp convergence
+                float a = prevT;
+                float b = t;
+                float midT = 0.5 * (a + b);
+                vec3  midP = ro + dir * midT;
+                float phiM;
+                vec3  colM;
+                int   itersM;
+                float depthM;
+                evalField(midP, phiM, colM, itersM, depthM);
+                float phiA = prevPhi;
+                
+                // 2 bisection steps to bracket tightly
+                for (int j = 0; j < 2; ++j) {
+                    float gA = phiA - uIsoLevel;
+                    float gM = phiM - uIsoLevel;
+                    if (gA * gM <= 0.0) {
+                        b = midT;
+                    } else {
+                        a = midT;
+                        phiA = phiM;
+                    }
+                    midT = 0.5 * (a + b);
+                    midP = ro + dir * midT;
+                    evalField(midP, phiM, colM, itersM, depthM);
+                }
+                
+                // 3 Newton steps along ray using directional derivative
+                for (int j = 0; j < 3; ++j) {
+                    float g = phiM - uIsoLevel;
+                    float dPsi = directionalDerivative(midP, dir);
+                    if (abs(dPsi) < 1e-4) break;
+                    float dtNewt = -g / dPsi;
+                    // Clamp to keep inside bracket
+                    dtNewt = clamp(dtNewt, -0.5*(b - a), 0.5*(b - a));
+                    midT += dtNewt;
+                    midP = ro + dir * midT;
+                    evalField(midP, phiM, colM, itersM, depthM);
+                }
+
+                hit = true;
+                hitT = midT;
+                
+                // Color by far-side basin for solid appearance
+                // Sample a point just past the surface to get basin color
+                float eps = 0.02; // Small offset into the basin
+                vec3 farP = midP + dir * eps;
+                float phiFar;
+                vec3 colFar;
+                int itersFar;
+                float depthFar;
+                evalField(farP, phiFar, colFar, itersFar, depthFar);
+                
+                // Use far-side color (basin beyond the boundary)
+                hitColor = applyColorScheme(colFar, itersFar, depthFar);
+                break;
+            }
+        }
+
+        prevPhi = phi;
+        prevColor = c;
+        prevT   = t;
+        prevIters = iters;
+        prevDepth = depth;
+        havePrev = true;
+        
+        // Adaptive step sizing based on field gradient and ray direction
+        float gradMag = abs(phi - prevPhi) / max(t - prevT, 0.001);
+        float dirDeriv = abs(directionalDerivative(p, dir));
+        
+        // Smaller steps when:
+        // 1. Near the iso-surface (small |phi - uIsoLevel|)
+        // 2. Head-on approach (small dirDeriv)
+        // 3. Steep gradient (large gradMag)
+        
+        float distToIso = abs(phi - uIsoLevel);
+        float headOnFactor = max(dirDeriv, 0.05); // Lower minimum for head-on views
+        
+        // Base step from distance to iso-surface
+        float baseStep = distToIso * 0.8;
+        
+        // Spatial jitter for smoother surfaces (when supersampling is OFF)
+        // Reduce jitter magnitude when near iso-surface for more stable intersection
+        float stepJitter = 1.0;
+        if (uSupersampling == 0 && distToIso > 0.1) {
+            stepJitter = 0.95 + hash13(p + vec3(float(i))) * 0.1;
+        }
+        
+        // Reduce step when head-on
+        float stepSize = baseStep * headOnFactor * stepJitter;
+        
+        // Finer step limits to catch thin features
+        float minStep = (uSupersampling == 1) ? 0.001 : 0.002;
+        float maxStep = (uSupersampling == 1) ? 0.06  : 0.10;
+        stepSize = clamp(stepSize, minStep, maxStep);
+        
+        t += stepSize;
+    }
+
+    if (!hit) {
+        float v = 0.3 + 0.2 * dir.y;
+        vec3 bg = uBgColor * v;
+        return vec4(bg, 1.0);
+    }
+
+    // Normal via finite differences on phiNorm
+    vec3 pHit = ro + dir * hitT;
+    float epsBase = 0.0008;
+    float eps = epsBase * (1.0 + 0.5 * abs(hitT) / 5.0); // Adaptive: tighter up close
+
+    float phiC; vec3 tmpC; int tmpI; float tmpD;
+    evalField(pHit, phiC, tmpC, tmpI, tmpD);
+
+    // Use central differences for better accuracy with fewer samples
+    float phiX, phiY, phiZ;
+    evalField(pHit + vec3(eps, 0.0, 0.0), phiX, tmpC, tmpI, tmpD);
+    evalField(pHit - vec3(eps, 0.0, 0.0), phiC, tmpC, tmpI, tmpD);
+    float dx = phiX - phiC;
+    
+    evalField(pHit + vec3(0.0, eps, 0.0), phiY, tmpC, tmpI, tmpD);
+    evalField(pHit - vec3(0.0, eps, 0.0), phiC, tmpC, tmpI, tmpD);
+    float dy = phiY - phiC;
+    
+    evalField(pHit + vec3(0.0, 0.0, eps), phiZ, tmpC, tmpI, tmpD);
+    evalField(pHit - vec3(0.0, 0.0, eps), phiC, tmpC, tmpI, tmpD);
+    float dz = phiZ - phiC;
+
+    vec3 grad = vec3(dx, dy, dz);
+    
+    // Ensure gradient is not degenerate
+    float gradLen = length(grad);
+    vec3 N = gradLen > 1e-6 ? grad / gradLen : -dir;
+
+    vec3 baseColor = hitColor;
+    vec3 finalColor = baseColor;
+
+    // Apply shading modes
+    if (uShadingMode == 1) {
+        // Normal-based lighting
+        vec3 L = normalize(vec3(0.6, 0.7, 0.4));
+        float ndotl = max(dot(N, L), 0.0);
+        float rim   = pow(1.0 - max(dot(N, -dir), 0.0), 2.0);
+
+        vec3 ambient = 0.22 * baseColor;
+        vec3 diffuse = 0.85 * baseColor * ndotl;
+        vec3 rimLight = 0.25 * vec3(1.0) * rim;
+        
+        finalColor = ambient + diffuse + rimLight;
+    } else if (uShadingMode == 2) {
+        // Ambient occlusion approximation
+        float ao = 1.0;
+        float stepSize = 0.05;
+        for (int i = 1; i <= 4; i++) {
+            vec3 samplePos = pHit + N * stepSize * float(i);
+            float samplePhi;
+            evalField(samplePos, samplePhi, tmpC, tmpI, tmpD);
+            ao -= (1.0 / pow(2.0, float(i))) * max(0.0, uIsoLevel - samplePhi);
+        }
+        ao = clamp(ao, 0.0, 1.0);
+        
+        vec3 L = normalize(vec3(0.6, 0.7, 0.4));
+        float ndotl = max(dot(N, L), 0.0);
+        
+        vec3 ambient = 0.15 * baseColor * ao;
+        vec3 diffuse = 0.95 * baseColor * ndotl * ao;
+        
+        finalColor = ambient + diffuse;
+    }
+    // else flat shading (uShadingMode == 0), finalColor = baseColor
+    
+    // Apply brightness and contrast
+    finalColor = (finalColor - 0.5) * uContrast + 0.5; // Contrast
+    finalColor = finalColor * uBrightness; // Brightness
+    
+    // Apply fog based on distance
+    float fogFactor = exp(-hitT * uFogAmount * 0.5);
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+    float v = 0.3 + 0.2 * dir.y;
+    vec3 bgColor = uBgColor * v;
+    finalColor = mix(bgColor, finalColor, fogFactor);
+
+    // Smooth transparency instead of hard holes
+    float colorDist = length(baseColor - uTransparentColor);
+    float alpha;
+    if (uTolerance <= 0.0) {
+        alpha = 1.0;
+    } else {
+        // Smooth fade: at colorDist = 0 → alpha ≈ 0, at colorDist >= uTolerance → alpha ≈ 1
+        alpha = smoothstep(0.0, uTolerance, colorDist);
+    }
+
+    return vec4(finalColor * alpha, alpha);
+}
+
+// Check if we should terminate the ray early (hit solid surface)
+bool shouldTerminateRay(vec4 color) {
+    // Terminate if we hit an opaque surface (alpha > 0.95)
+    return color.a > 0.95;
+}
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy / uResolution.xy) * 2.0 - 1.0;
+    uv.x *= uResolution.x / uResolution.y;
+
+    vec3 dir = normalize(
+        uCamForward +
+        uv.x * uFov * uCamRight +
+        uv.y * uFov * uCamUp
+    );
+    vec3 ro = uCamPos;
+
+    vec4 finalColor;
+    
+    if (uSupersampling == 1) {
+        // 2x2 supersampling for high quality
+        vec4 accum = vec4(0.0);
+        for (int sy = 0; sy < 2; ++sy) {
+            for (int sx = 0; sx < 2; ++sx) {
+                vec2 offset = (vec2(float(sx), float(sy)) - 0.5) / uResolution;
+                vec2 uvJit = uv + offset;
+                vec3 dirJit = normalize(
+                    uCamForward +
+                    uvJit.x * uFov * uCamRight +
+                    uvJit.y * uFov * uCamUp
+                );
+                accum += traceRay(ro, dirJit);
+            }
+        }
+        finalColor = accum * 0.25; // Average 4 samples
+    } else {
+        // Single sample per pixel
+        finalColor = traceRay(ro, dir);
+    }
+    
+    gl_FragColor = finalColor;
+}
+</script>
+
+<script>
+(function() {
+  const canvas    = document.getElementById('glcanvas');
+  const nSlider   = document.getElementById('nRange');
+  const nLabel    = document.getElementById('nRangeValue');
+  const isoSlider = document.getElementById('isoLevel');
+  const isoLabel  = document.getElementById('isoLevelValue');
+  const qSlider   = document.getElementById('qParam');
+  const qLabel    = document.getElementById('qParamValue');
+  const pSlider   = document.getElementById('pParam');
+  const pLabel    = document.getElementById('pParamValue');
+  const speedSlider = document.getElementById('speedParam');
+  const speedLabel  = document.getElementById('speedParamValue');
+  const fpsTargetSlider = document.getElementById('fpsTarget');
+  const fpsTargetLabel  = document.getElementById('fpsTargetValue');
+  const colorPicker = document.getElementById('colorPicker');
+  const toleranceSlider = document.getElementById('toleranceParam');
+  const toleranceLabel  = document.getElementById('toleranceValue');
+  const functionSelect = document.getElementById('functionSelect');
+  const animateBtn = document.getElementById('animateBtn');
+  const colorSchemeSelect = document.getElementById('colorScheme');
+  const solidColorPicker = document.getElementById('solidColor');
+  const shadingModeSelect = document.getElementById('shadingMode');
+  const brightnessSlider = document.getElementById('brightness');
+  const brightnessLabel = document.getElementById('brightnessValue');
+  const contrastSlider = document.getElementById('contrast');
+  const contrastLabel = document.getElementById('contrastValue');
+  const bgColorPicker = document.getElementById('bgColor');
+  const fogAmountSlider = document.getElementById('fogAmount');
+  const fogAmountLabel = document.getElementById('fogAmountValue');
+  const autoDynamicResCheckbox = document.getElementById('autoDynamicRes');
+  const manualResScaleSlider = document.getElementById('manualResScale');
+  const manualResScaleLabel = document.getElementById('manualResScaleValue');
+  const enableSupersamplingCheckbox = document.getElementById('enableSupersampling');
+
+  let gl, program;
+  const attribs = {};
+  const uniforms = {};
+
+  // Flycam state
+  let camPos   = [0, 0, 4.0];
+  let camYaw   = 0.0;   // look toward -Z
+  let camPitch = 0.0;
+  const boxR   = 2.0;
+  const fov    = Math.tan(45 * Math.PI / 180 * 0.5);
+
+  const keys = {};          // single, global key map
+  let pointerLocked = false;
+
+  // Animation state
+  let animating = false;
+  let animTime = 0.0;
+  let animStartTime = 0.0; // Absolute start time for time-based animation
+
+  // Render state for optimization
+  let needsRender = true;
+  let lastCamPos = [0, 0, 4.0];
+  let lastCamYaw = 0.0;
+  let lastCamPitch = 0.0;
+  let lastParams = { n: 3.0, iso: 0.55, q: 0.0, p: 0.0, func: 0, tolerance: 0.1 };
+  
+  // Dynamic resolution scaling
+  let resolutionScale = 1.0;
+  let targetFPS = 30; // Will be updated from slider
+  const minScale = 0.1;  // Can go down to 10%
+  const maxScale = 1.0;
+  let fpsHistory = [];
+  const fpsHistorySize = 5;  // Smaller history for faster response
+  let frameCount = 0;
+  let fpsCheckTime = performance.now();
+
+  function resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    // Canvas internal size will be set in render based on resolutionScale
+    needsRender = true;
+  }
+
+  function createShader(gl, type, src) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(sh));
+      gl.deleteShader(sh);
+      return null;
+    }
+    return sh;
+  }
+
+  function createProgram(gl, vsSrc, fsSrc) {
+    const vs = createShader(gl, gl.VERTEX_SHADER, vsSrc);
+    const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+    if (!vs || !fs) return null;
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error('Program link error:', gl.getProgramInfoLog(prog));
+      gl.deleteProgram(prog);
+      return null;
+    }
+    return prog;
+  }
+
+  function initGL() {
+    gl = canvas.getContext('webgl');
+    if (!gl) {
+      alert('WebGL not supported');
+      return;
+    }
+    const vsSource = document.getElementById('vs').textContent;
+    const fsSource = document.getElementById('fs').textContent;
+    program = createProgram(gl, vsSource, fsSource);
+    gl.useProgram(program);
+
+    attribs.aPosition   = gl.getAttribLocation(program, 'aPosition');
+    uniforms.uResolution = gl.getUniformLocation(program, 'uResolution');
+    uniforms.uCamPos     = gl.getUniformLocation(program, 'uCamPos');
+    uniforms.uCamForward = gl.getUniformLocation(program, 'uCamForward');
+    uniforms.uCamRight   = gl.getUniformLocation(program, 'uCamRight');
+    uniforms.uCamUp      = gl.getUniformLocation(program, 'uCamUp');
+    uniforms.uFov        = gl.getUniformLocation(program, 'uFov');
+    uniforms.uBoxR       = gl.getUniformLocation(program, 'uBoxR');
+    uniforms.uNRange     = gl.getUniformLocation(program, 'uNRange');
+    uniforms.uIsoLevel   = gl.getUniformLocation(program, 'uIsoLevel');
+    uniforms.uQ          = gl.getUniformLocation(program, 'uQ');
+    uniforms.uP          = gl.getUniformLocation(program, 'uP');
+    uniforms.uTransparentColor = gl.getUniformLocation(program, 'uTransparentColor');
+    uniforms.uTolerance  = gl.getUniformLocation(program, 'uTolerance');
+    uniforms.uFunction   = gl.getUniformLocation(program, 'uFunction');
+    uniforms.uColorScheme = gl.getUniformLocation(program, 'uColorScheme');
+    uniforms.uSolidColor = gl.getUniformLocation(program, 'uSolidColor');
+    uniforms.uShadingMode = gl.getUniformLocation(program, 'uShadingMode');
+    uniforms.uBrightness = gl.getUniformLocation(program, 'uBrightness');
+    uniforms.uContrast = gl.getUniformLocation(program, 'uContrast');
+    uniforms.uBgColor = gl.getUniformLocation(program, 'uBgColor');
+    uniforms.uFogAmount = gl.getUniformLocation(program, 'uFogAmount');
+    uniforms.uTime = gl.getUniformLocation(program, 'uTime');
+    uniforms.uSupersampling = gl.getUniformLocation(program, 'uSupersampling');
+
+    const quadVerts = new Float32Array([
+      -1, -1,
+       1, -1,
+      -1,  1,
+      -1,  1,
+       1, -1,
+       1,  1
+    ]);
+    const vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, quadVerts, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(attribs.aPosition);
+    gl.vertexAttribPointer(attribs.aPosition, 2, gl.FLOAT, false, 0, 0);
+
+    gl.clearColor(0, 0, 0, 1);
+
+    gl.uniform1f(uniforms.uBoxR, boxR);
+    gl.uniform1f(uniforms.uFov, fov);
+    
+    // Enable blending for transparency
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  }
+
+  function normalize3(v) {
+    const l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0]/l, v[1]/l, v[2]/l];
+  }
+
+  function cross3(a,b) {
+    return [
+      a[1]*b[2] - a[2]*b[1],
+      a[2]*b[0] - a[0]*b[2],
+      a[0]*b[1] - a[1]*b[0]
+    ];
+  }
+
+  function updateCamera(dt) {
+    const cy = Math.cos(camYaw), sy = Math.sin(camYaw);
+    const cp = Math.cos(camPitch), sp = Math.sin(camPitch);
+    const forward = normalize3([cy*cp, sp, sy*cp]);
+    const upWorld = [0,1,0];
+    let right = normalize3(cross3(forward, upWorld));
+    let up    = normalize3(cross3(right, forward));
+
+    const speed = 2.0;
+    const s = speed * realDeltaTime; // Use real time delta, not frame delta
+
+    let moved = false;
+
+    if (keys['KeyW']) {
+      camPos[0] += forward[0]*s;
+      camPos[1] += forward[1]*s;
+      camPos[2] += forward[2]*s;
+      moved = true;
+    }
+    if (keys['KeyS']) {
+      camPos[0] -= forward[0]*s;
+      camPos[1] -= forward[1]*s;
+      camPos[2] -= forward[2]*s;
+      moved = true;
+    }
+    if (keys['KeyA']) {
+      camPos[0] -= right[0]*s;
+      camPos[1] -= right[1]*s;
+      camPos[2] -= right[2]*s;
+      moved = true;
+    }
+    if (keys['KeyD']) {
+      camPos[0] += right[0]*s;
+      camPos[1] += right[1]*s;
+      camPos[2] += right[2]*s;
+      moved = true;
+    }
+    if (keys['KeyQ']) {
+      camPos[0] -= up[0]*s;
+      camPos[1] -= up[1]*s;
+      camPos[2] -= up[2]*s;
+      moved = true;
+    }
+    if (keys['KeyE']) {
+      camPos[0] += up[0]*s;
+      camPos[1] += up[1]*s;
+      camPos[2] += up[2]*s;
+      moved = true;
+    }
+
+    // Check if camera changed
+    if (moved || 
+        camYaw !== lastCamYaw || 
+        camPitch !== lastCamPitch ||
+        camPos[0] !== lastCamPos[0] ||
+        camPos[1] !== lastCamPos[1] ||
+        camPos[2] !== lastCamPos[2]) {
+      needsRender = true;
+      lastCamYaw = camYaw;
+      lastCamPitch = camPitch;
+      lastCamPos = [...camPos];
+    }
+
+    gl.uniform3fv(uniforms.uCamPos, camPos);
+    gl.uniform3fv(uniforms.uCamForward, forward);
+    gl.uniform3fv(uniforms.uCamRight, right);
+    gl.uniform3fv(uniforms.uCamUp, up);
+  }
+
+  let lastTime = performance.now();
+  let realDeltaTime = 0.0; // Actual time delta for movement
+
+  function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    return [r, g, b];
+  }
+
+  function render() {
+    if (!gl) return;
+    const now = performance.now();
+    const dt = (now - lastTime) / 1000.0;
+    realDeltaTime = dt; // Store real delta time
+    lastTime = now;
+
+    // Update target FPS from slider
+    targetFPS = parseFloat(fpsTargetSlider.value);
+
+    // FPS tracking and dynamic resolution adjustment (only if auto is enabled)
+    const autoDynamicRes = autoDynamicResCheckbox.checked;
+    
+    if (autoDynamicRes) {
+      frameCount++;
+      const timeSinceCheck = now - fpsCheckTime;
+      if (timeSinceCheck > 200) { // Check every 200ms for faster response
+        const currentFPS = (frameCount / timeSinceCheck) * 1000;
+        fpsHistory.push(currentFPS);
+        if (fpsHistory.length > fpsHistorySize) {
+          fpsHistory.shift();
+        }
+        
+        // Calculate average FPS
+        const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+        
+        // Adjust resolution scale based on FPS - more aggressive
+        if (avgFPS < targetFPS * 0.85 && resolutionScale > minScale) {
+          resolutionScale = Math.max(minScale, resolutionScale - 0.15);
+          console.log(`FPS: ${avgFPS.toFixed(1)} - Reducing resolution to ${(resolutionScale * 100).toFixed(0)}%`);
+        } else if (avgFPS > targetFPS * 1.1 && resolutionScale < maxScale) {
+          resolutionScale = Math.min(maxScale, resolutionScale + 0.05);
+          console.log(`FPS: ${avgFPS.toFixed(1)} - Increasing resolution to ${(resolutionScale * 100).toFixed(0)}%`);
+        }
+        
+        frameCount = 0;
+        fpsCheckTime = now;
+      }
+    } else {
+      // Use manual resolution scale
+      resolutionScale = parseFloat(manualResScaleSlider.value);
+    }
+
+    // Update animation time - use absolute time for consistent speed
+    if (animating) {
+      animTime = (now - animStartTime) / 1000.0; // Seconds since animation started
+      needsRender = true;
+    }
+
+    // Check if parameters changed
+    const currentParams = {
+      n: parseFloat(nSlider.value),
+      iso: parseFloat(isoSlider.value),
+      q: parseFloat(qSlider.value),
+      p: parseFloat(pSlider.value),
+      func: parseInt(functionSelect.value),
+      tolerance: parseFloat(toleranceSlider.value)
+    };
+    
+    if (JSON.stringify(currentParams) !== JSON.stringify(lastParams)) {
+      needsRender = true;
+      lastParams = {...currentParams};
+    }
+
+    updateCamera(dt);
+
+    // Only render if needed
+    if (needsRender) {
+      // Actually change canvas resolution based on scale
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const renderWidth = Math.max(1, Math.floor(w * resolutionScale));
+      const renderHeight = Math.max(1, Math.floor(h * resolutionScale));
+      
+      // Only resize canvas if resolution changed
+      if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
+        canvas.width = renderWidth;
+        canvas.height = renderHeight;
+      }
+      
+      gl.viewport(0, 0, renderWidth, renderHeight);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.useProgram(program);
+      
+      // Use actual render resolution
+      gl.uniform2f(uniforms.uResolution, renderWidth, renderHeight);
+      gl.uniform1f(uniforms.uNRange, currentParams.n);
+      gl.uniform1f(uniforms.uIsoLevel, currentParams.iso);
+      
+      // Apply animation to q parameter if active
+      let qValue = currentParams.q;
+      if (animating) {
+        const speed = parseFloat(speedSlider.value);
+        qValue = Math.sin(animTime * speed) * 1.5;
+        qLabel.textContent = qValue.toFixed(2);
+      }
+      gl.uniform1f(uniforms.uQ, qValue);
+      gl.uniform1f(uniforms.uP, currentParams.p);
+      
+      // Set transparent color and tolerance
+      const rgbColor = hexToRgb(colorPicker.value);
+      gl.uniform3fv(uniforms.uTransparentColor, rgbColor);
+      gl.uniform1f(uniforms.uTolerance, currentParams.tolerance);
+      gl.uniform1i(uniforms.uFunction, currentParams.func);
+      
+      // Set new rendering options
+      gl.uniform1i(uniforms.uColorScheme, parseInt(colorSchemeSelect.value));
+      const solidRgb = hexToRgb(solidColorPicker.value);
+      gl.uniform3fv(uniforms.uSolidColor, solidRgb);
+      gl.uniform1i(uniforms.uShadingMode, parseInt(shadingModeSelect.value));
+      gl.uniform1f(uniforms.uBrightness, parseFloat(brightnessSlider.value));
+      gl.uniform1f(uniforms.uContrast, parseFloat(contrastSlider.value));
+      
+      // Background and fog
+      const bgRgb = hexToRgb(bgColorPicker.value);
+      gl.uniform3fv(uniforms.uBgColor, bgRgb);
+      gl.uniform1f(uniforms.uFogAmount, parseFloat(fogAmountSlider.value));
+      
+      // Update time and supersampling
+      gl.uniform1f(uniforms.uTime, now * 0.001); // Convert to seconds
+      gl.uniform1i(uniforms.uSupersampling, enableSupersamplingCheckbox.checked ? 1 : 0);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      
+      needsRender = animating; // Keep rendering during animation
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  // --- UI hooks ---
+
+  nSlider.addEventListener('input', () => {
+    nLabel.textContent = parseFloat(nSlider.value).toFixed(2);
+    needsRender = true;
+  });
+  isoSlider.addEventListener('input', () => {
+    isoLabel.textContent = parseFloat(isoSlider.value).toFixed(2);
+    needsRender = true;
+  });
+  qSlider.addEventListener('input', () => {
+    qLabel.textContent = parseFloat(qSlider.value).toFixed(2);
+    needsRender = true;
+  });
+  pSlider.addEventListener('input', () => {
+    pLabel.textContent = parseFloat(pSlider.value).toFixed(2);
+    needsRender = true;
+  });
+  speedSlider.addEventListener('input', () => {
+    speedLabel.textContent = parseFloat(speedSlider.value).toFixed(1);
+  });
+  fpsTargetSlider.addEventListener('input', () => {
+    fpsTargetLabel.textContent = fpsTargetSlider.value;
+  });
+  toleranceSlider.addEventListener('input', () => {
+    toleranceLabel.textContent = parseFloat(toleranceSlider.value).toFixed(2);
+    needsRender = true;
+  });
+  
+  functionSelect.addEventListener('change', () => {
+    needsRender = true;
+  });
+  
+  colorPicker.addEventListener('input', () => {
+    needsRender = true;
+  });
+
+  colorSchemeSelect.addEventListener('change', () => {
+    needsRender = true;
+  });
+
+  solidColorPicker.addEventListener('input', () => {
+    needsRender = true;
+  });
+
+  shadingModeSelect.addEventListener('change', () => {
+    needsRender = true;
+  });
+
+  brightnessSlider.addEventListener('input', () => {
+    brightnessLabel.textContent = parseFloat(brightnessSlider.value).toFixed(1);
+    needsRender = true;
+  });
+
+  contrastSlider.addEventListener('input', () => {
+    contrastLabel.textContent = parseFloat(contrastSlider.value).toFixed(1);
+    needsRender = true;
+  });
+
+  bgColorPicker.addEventListener('input', () => {
+    needsRender = true;
+  });
+
+  fogAmountSlider.addEventListener('input', () => {
+    fogAmountLabel.textContent = parseFloat(fogAmountSlider.value).toFixed(2);
+    needsRender = true;
+  });
+
+  autoDynamicResCheckbox.addEventListener('change', () => {
+    manualResScaleSlider.disabled = autoDynamicResCheckbox.checked;
+    needsRender = true;
+  });
+
+  manualResScaleSlider.addEventListener('input', () => {
+    manualResScaleLabel.textContent = (parseFloat(manualResScaleSlider.value) * 100).toFixed(0) + '%';
+    needsRender = true;
+  });
+
+  enableSupersamplingCheckbox.addEventListener('change', () => {
+    needsRender = true;
+  });
+
+  animateBtn.addEventListener('click', () => {
+    animating = !animating;
+    if (animating) {
+      animStartTime = performance.now(); // Reset start time
+      animTime = 0.0;
+    }
+    if (!animating) {
+      // Reset q to slider value when stopping animation
+      qLabel.textContent = parseFloat(qSlider.value).toFixed(2);
+    }
+    animateBtn.textContent = animating ? 'Stop Animation' : 'Toggle Sin Animation';
+    animateBtn.style.background = animating ? '#446' : '#334';
+  });
+
+  // Keyboard
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+  });
+
+  // Pointer lock / mouse look
+  canvas.addEventListener('click', () => {
+    canvas.requestPointerLock();
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    pointerLocked = (document.pointerLockElement === canvas);
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!pointerLocked) return;
+    const sensitivity = 0.0025;
+    camYaw   += e.movementX * sensitivity;
+    camPitch -= e.movementY * sensitivity;
+    const limit = Math.PI * 0.49;
+    if (camPitch >  limit) camPitch =  limit;
+    if (camPitch < -limit) camPitch = -limit;
+    needsRender = true;
+  });
+
+  window.addEventListener('resize', resize);
+
+  // init
+  resize();
+  initGL();
+  nLabel.textContent = parseFloat(nSlider.value).toFixed(2);
+  isoLabel.textContent = parseFloat(isoSlider.value).toFixed(2);
+  qLabel.textContent = parseFloat(qSlider.value).toFixed(2);
+  pLabel.textContent = parseFloat(pSlider.value).toFixed(2);
+  speedLabel.textContent = parseFloat(speedSlider.value).toFixed(1);
+  fpsTargetLabel.textContent = fpsTargetSlider.value;
+  toleranceLabel.textContent = parseFloat(toleranceSlider.value).toFixed(2);
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
+
