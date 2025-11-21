@@ -1,3 +1,5 @@
+To the best of my knowledge, this framework of interpreting a parameter-indexed family of Newton fractals as a continuous 3D structure formed by stacking slices along the parameter axis has not been explored in detail in the existing literature. I’m sharing it here in the hope that someone with a stronger mathematical background might pick it up and take it further. If you do, let me know! I’ve been obsessed Newton fractals for more than a decade, and I’d love to see what you make of this idea.
+
 When extending a Newton fractal into three dimensions, we introduce a parameter $t$ that acts as a third spatial coordinate. Consider the family of functions
 
 $$
