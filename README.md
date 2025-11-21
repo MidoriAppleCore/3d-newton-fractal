@@ -1,3 +1,6 @@
+![Fractal Animation](https://catsgomeowmeow.com/fractal.gif)
+
+
 To the best of my knowledge, this framework of interpreting a parameter-indexed family of Newton fractals as a continuous 3D structure formed by stacking slices along the parameter axis has not been explored in detail in the existing literature. I’m sharing it here in the hope that someone with a stronger mathematical background might pick it up and take it further. If you do, let me know! I’ve been obsessed Newton fractals for more than a decade, and I’d love to see what you make of this idea.
 
 When extending a Newton fractal into three dimensions, we introduce a parameter $t$ that acts as a third spatial coordinate. Consider the family of functions
@@ -21,4 +24,3 @@ If we interpret $t$ as a spatial coordinate — the **z-axis** — while the com
 
 Viewed this way, the full collection of points $(x,y,t)$ for which $x + iy$ lies in the Newton fractal for parameter $t$ forms a continuous surface-like object in 3D space. This can be regarded as a **worldsheet** traced out by the evolution of the Newton fractal as the parameter $t$ varies.
 
-![Fractal Animation](https://catsgomeowmeow.com/fractal.gif)
