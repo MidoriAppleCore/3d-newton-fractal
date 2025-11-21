@@ -68,24 +68,12 @@
     <span id="fpsTargetValue">30</span>
   </label>
   <label>
-    <input id="autoDynamicRes" type="checkbox" checked>
-    Auto dynamic resolution
-  </label>
-  <label>
-    Manual resolution scale:
-    <input id="manualResScale" type="range" min="0.1" max="1.0" step="0.05" value="1.0" disabled>
-    <span id="manualResScaleValue">100%</span>
-  </label>
-  <label>
-    <input id="enableSupersampling" type="checkbox">
-    2x2 Supersampling (high quality)
-  </label>
-  <label>
     function:
     <select id="functionSelect" style="width:180px; padding:2px; background:#223; color:#ddd; border:1px solid #667; border-radius:3px;">
       <option value="0">sin(nw²+q)·w + cos(pw) - w + 1</option>
       <option value="1">n·w³ - q·w² + p</option>
       <option value="2">ζ-approx: w^n + w^(-q) + p</option>
+      <option value="3">sin(t)(w³-1) + cos(t)(w·sin(w)-w²-q)</option>
     </select>
   </label>
   <label>
@@ -142,6 +130,115 @@
       Toggle Sin Animation
     </button>
   </div>
+  
+  <!-- Audio Control Section -->
+  <div style="margin-top:12px; padding-top:8px; border-top:1px solid rgba(200,200,255,0.2);">
+    <div style="font-weight:bold; margin-bottom:6px;">🎵 Audio Reactive VJ</div>
+    <input type="file" id="audioFile" accept="audio/*" style="font-size:11px; margin-bottom:6px;">
+    <div style="margin-bottom:6px;">
+      <button id="audioPlayBtn" style="padding:4px 12px; cursor:pointer; border-radius:4px; background:#334; color:#ddd; border:1px solid #667; font-size:11px;" disabled>
+        Play
+      </button>
+    </div>
+    
+    <label style="font-size:11px;">
+      Global smoothing: <input id="audioSmoothing" type="range" min="0.0" max="0.95" step="0.05" value="0.3" style="width:100px;">
+      <span id="audioSmoothingValue">0.30</span>
+    </label>
+    
+    <div style="font-size:11px; margin-top:6px; padding:4px; background:rgba(0,0,0,0.3); border-radius:3px;">
+      <div style="margin-bottom:3px;">Bass → q (kick)</div>
+      <label style="font-size:10px; display:inline-block; margin-right:8px;">
+        Amt: <input id="audioToQ" type="range" min="-10.0" max="10.0" step="0.1" value="3.0" style="width:80px;">
+        <span id="audioToQValue">3.0</span>
+      </label>
+      <label style="font-size:10px; display:inline-block;">
+        Mode: <select id="audioModeQ" style="font-size:10px; background:#223; color:#ddd; border:1px solid #667;">
+          <option value="add">Add</option>
+          <option value="mult">Multiply</option>
+          <option value="osc">Oscillate</option>
+        </select>
+      </label>
+    </div>
+    
+    <div style="font-size:11px; margin-top:4px; padding:4px; background:rgba(0,0,0,0.3); border-radius:3px;">
+      <div style="margin-bottom:3px;">Mid → p (snare/vocals)</div>
+      <label style="font-size:10px; display:inline-block; margin-right:8px;">
+        Amt: <input id="audioToP" type="range" min="-10.0" max="10.0" step="0.1" value="2.0" style="width:80px;">
+        <span id="audioToPValue">2.0</span>
+      </label>
+      <label style="font-size:10px; display:inline-block;">
+        Mode: <select id="audioModeP" style="font-size:10px; background:#223; color:#ddd; border:1px solid #667;">
+          <option value="add">Add</option>
+          <option value="mult">Multiply</option>
+          <option value="osc">Oscillate</option>
+        </select>
+      </label>
+    </div>
+    
+    <div style="font-size:11px; margin-top:4px; padding:4px; background:rgba(0,0,0,0.3); border-radius:3px;">
+      <div style="margin-bottom:3px;">Treble → n (hi-hats)</div>
+      <label style="font-size:10px; display:inline-block; margin-right:8px;">
+        Amt: <input id="audioToN" type="range" min="-10.0" max="10.0" step="0.1" value="2.5" style="width:80px;">
+        <span id="audioToNValue">2.5</span>
+      </label>
+      <label style="font-size:10px; display:inline-block;">
+        Mode: <select id="audioModeN" style="font-size:10px; background:#223; color:#ddd; border:1px solid #667;">
+          <option value="add">Add</option>
+          <option value="mult">Multiply</option>
+          <option value="osc">Oscillate</option>
+        </select>
+      </label>
+    </div>
+    
+    <div style="font-size:11px; margin-top:4px; padding:4px; background:rgba(0,0,0,0.3); border-radius:3px;">
+      <div style="margin-bottom:3px;">Bass → iso</div>
+      <label style="font-size:10px; display:inline-block; margin-right:8px;">
+        Amt: <input id="audioToIso" type="range" min="-2.0" max="2.0" step="0.01" value="0.3" style="width:80px;">
+        <span id="audioToIsoValue">0.30</span>
+      </label>
+      <label style="font-size:10px; display:inline-block;">
+        Mode: <select id="audioModeIso" style="font-size:10px; background:#223; color:#ddd; border:1px solid #667;">
+          <option value="add">Add</option>
+          <option value="mult">Multiply</option>
+          <option value="osc">Oscillate</option>
+        </select>
+      </label>
+    </div>
+    
+    <div style="margin-top:6px; font-size:11px;">
+      <label style="font-size:11px;">
+        <input type="checkbox" id="beatReactive" checked> Beat-reactive flash
+      </label>
+      <label style="font-size:10px; margin-left:10px;">
+        Threshold: <input id="beatThreshold" type="range" min="0.3" max="0.9" step="0.05" value="0.6" style="width:60px;">
+        <span id="beatThresholdValue">0.60</span>
+      </label>
+    </div>
+    
+    <label style="font-size:11px; margin-top:4px;">
+      Auto-gain (RMS): <input id="autoGain" type="range" min="0.5" max="3.0" step="0.1" value="1.5" style="width:100px;">
+      <span id="autoGainValue">1.5</span>
+    </label>
+    <label style="font-size:11px; margin-top:2px;">
+      Manual boost: <input id="manualGain" type="range" min="0.5" max="5.0" step="0.1" value="1.0" style="width:100px;">
+      <span id="manualGainValue">1.0</span>
+    </label>
+  </div>
+  
+  <!-- MIDI Control Section -->
+  <div style="margin-top:12px; padding-top:8px; border-top:1px solid rgba(200,200,255,0.2);">
+    <div style="font-weight:bold; margin-bottom:6px;">🎹 MIDI Control</div>
+    <button id="midiEnableBtn" style="padding:4px 12px; cursor:pointer; border-radius:4px; background:#334; color:#ddd; border:1px solid #667; margin-bottom:6px;">
+      Enable MIDI
+    </button>
+    <div id="midiStatus" style="font-size:11px; opacity:0.7; margin-bottom:6px;">Not connected</div>
+    <label style="font-size:12px;">
+      <input type="checkbox" id="midiLearnMode"> Learn Mode
+    </label>
+    <div id="midiMappings" style="font-size:11px; opacity:0.7; margin-top:6px; max-height:100px; overflow-y:auto;"></div>
+  </div>
+  
   <div style="margin-top:6px; opacity:0.8">
     z axis = parameter n(z) (smooth)<br>
     Click canvas → mouse look<br>
@@ -173,6 +270,7 @@ uniform float uNRange;     // parameter range for n(z)
 uniform float uIsoLevel;   // 0..1 iso level on smooth field
 uniform float uQ;          // q parameter
 uniform float uP;          // p parameter
+uniform float uTime;       // time for animated functions
 uniform vec3  uTransparentColor; // color to make transparent
 uniform float uTolerance;  // tolerance for color matching
 uniform int   uFunction;   // which function to use
@@ -183,17 +281,8 @@ uniform float uBrightness;  // brightness multiplier
 uniform float uContrast;    // contrast multiplier
 uniform vec3  uBgColor;     // background color
 uniform float uFogAmount;   // fog amount
-uniform float uTime;        // time for temporal jittering
-uniform int   uSupersampling; // 0=off, 1=2x2 supersampling
 
 // ------------- Complex ops: z = vec2(x,y) -------------
-
-// Hash for spatial anti-aliasing (deterministic per pixel)
-float hash13(vec3 p3) {
-    p3 = fract(p3 * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
 
 vec2 cMul(vec2 a, vec2 b) {
     return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x);
@@ -254,7 +343,7 @@ vec3 angleColor(vec2 z) {
 // We do K fixed iterations and build a smooth scalar
 // phi = normalized average log|f(w_k; n, q, p)|.
 
-const int K = 20; // higher iterations for sharper basin boundaries and fewer holes
+const int K = 10; // balanced iterations for performance and quality
 
 void evalField(vec3 p, out float phiNorm, out vec3 baseColor, out int iterCount, out float depth) {
     float R = uBoxR;
@@ -263,20 +352,17 @@ void evalField(vec3 p, out float phiNorm, out vec3 baseColor, out int iterCount,
     float scaleXY = 2.5;
     vec2 w = vec2(p.x, p.y) / R * scaleXY;
 
-    // parameter n varies along z only (true n(z))
-    // p.z is in [-R, R], map to [0,1]
-    float zNorm = clamp((p.z / (2.0 * R)) + 0.5, 0.0, 1.0);
-    
-    // center around 1.0 and use uNRange as a span
-    float n = 1.0 + (zNorm - 0.5) * uNRange;
+    // smooth parameter - use distance from origin instead of just z
+    // This reduces artifacts when viewing from the side
+    float dist = length(p) / (R * 1.732); // normalize by diagonal
+    float n = 1.0 + (dist - 0.5) * uNRange;
 
     vec2 wCurr = w;
     float acc = 0.0;
     int   steps = 0;
-    vec2 f = vec2(0.0);  // Declare outside loop for final residual access
-    vec2 fp;
 
     for (int i = 0; i < K; ++i) {
+        vec2 f, fp;
         
         if (uFunction == 0) {
             // Function 0: sin(n w^2 + q) * w + cos(p w) - w + 1
@@ -304,8 +390,46 @@ void evalField(vec3 p, out float phiNorm, out vec3 baseColor, out int iterCount,
             
             // f' = 3*n*w^2 - 2*q*w
             fp = vec2(3.0 * n, 0.0) * w2 - vec2(2.0 * uQ, 0.0) * wCurr;
-        } else {
+        } else if (uFunction == 2) {
             // Function 2: zeta-approximation: w^n + w^(-q) + p
+            vec2 wn = cPow(wCurr, n);
+            vec2 winvq = cPow(wCurr, -uQ);
+            f = wn + winvq + vec2(uP, 0.0);
+            
+            // f' = n*w^(n-1) - q*w^(-q-1)
+            vec2 term1 = vec2(n, 0.0) * cPow(wCurr, n - 1.0);
+            vec2 term2 = vec2(-uQ, 0.0) * cPow(wCurr, -uQ - 1.0);
+            fp = term1 + term2;
+        } else if (uFunction == 3) {
+            // Function 3: sin(t)(w³-1) + cos(t)(w·sin(w)-w²-q)
+            // Time-varying coefficients with parameters mixed in
+            float st = sin(uTime);
+            float ct = cos(uTime);
+            
+            vec2 w2 = cSqr(wCurr);
+            vec2 w3 = cMul(w2, wCurr);
+            
+            // First term: sin(t) * (w³ - 1)
+            vec2 term1 = vec2(st, 0.0) * (w3 - vec2(1.0, 0.0));
+            
+            // Second term: cos(t) * (w·sin(w) - w² - q)
+            vec2 sinW = cSin(wCurr);
+            vec2 wSinW = cMul(wCurr, sinW);
+            vec2 innerTerm = wSinW - w2 - vec2(uQ, 0.0);
+            vec2 term2 = vec2(ct, 0.0) * innerTerm;
+            
+            // Add p parameter to final result
+            f = term1 + term2 + vec2(uP, 0.0);
+            
+            // Derivative: sin(t)(3w²) + cos(t)(sin(w) + w·cos(w) - 2w)
+            vec2 cosW = cCos(wCurr);
+            vec2 wCosW = cMul(wCurr, cosW);
+            vec2 fp1 = vec2(st, 0.0) * vec2(3.0, 0.0) * w2;
+            vec2 fp2Inner = sinW + wCosW - vec2(2.0, 0.0) * wCurr;
+            vec2 fp2 = vec2(ct, 0.0) * fp2Inner;
+            fp = fp1 + fp2;
+        } else {
+            // Function 2 fallback (old else case)
             vec2 wn = cPow(wCurr, n);
             vec2 winvq = cPow(wCurr, -uQ);
             f = wn + winvq + vec2(uP, 0.0);
@@ -331,36 +455,21 @@ void evalField(vec3 p, out float phiNorm, out vec3 baseColor, out int iterCount,
         }
 
         vec2 step = cDiv(f, fp);
-        
-        // Clamp step size to prevent float precision extremes
-        float stepLen = length(step);
-        if (stepLen > 10.0) {
-            step = step * (10.0 / stepLen); // Cap to reasonable range
-        }
-        
         wCurr = wCurr - step;
-        
-        // Divergence check: if w grows too large, treat as escaped
-        if (length(wCurr) > 100.0) {
-            break;
-        }
     }
 
     if (steps == 0) steps = 1;
-    
-    // Phase 2: Smooth field using escape-time smoothing
-    // Use logarithm of final residual for smooth interpolation between iteration bands
-    float finalErr = length(f);
-    float smoothFactor = log(finalErr + 1.0) / log(2.0);
-    
-    // Combine iteration count with fractional smoothing
-    float phi = (float(steps) + smoothFactor) / (float(K) + 3.0);
+    float avgLog = acc / float(steps);
+
+    // Normalize avgLog into [0,1] by an affine map + clamp.
+    // Heuristic range; tweak constants for contrast.
+    float phi = (avgLog + 6.0) / 8.0;
     phi = clamp(phi, 0.0, 1.0);
 
     phiNorm = phi;
     baseColor = angleColor(wCurr);
     iterCount = steps;
-    depth = zNorm;  // z-based depth for planar coloring
+    depth = dist;
 }
 
 // Apply color scheme
@@ -373,8 +482,8 @@ vec3 applyColorScheme(vec3 angleCol, int iters, float depth) {
         float t = clamp(depth, 0.0, 1.0);
         return mix(vec3(0.1, 0.3, 0.8), vec3(0.9, 0.2, 0.1), t);
     } else if (uColorScheme == 2) {
-        // Iterations heatmap (adjusted for K=20)
-        float t = clamp(float(iters) / float(K), 0.0, 1.0);
+        // Iterations heatmap
+        float t = float(iters) / float(K);
         vec3 cold = vec3(0.0, 0.0, 0.5);
         vec3 warm = vec3(1.0, 0.9, 0.0);
         vec3 hot = vec3(1.0, 0.1, 0.0);
@@ -405,7 +514,7 @@ bool intersectBox(vec3 ro, vec3 rd, float R,
 
 // ------------- Iso-surface raymarch on smooth phiNorm -------------
 
-const int   MAX_RAY_STEPS = 80;   // Reduced since we terminate early on solid hits
+const int   MAX_RAY_STEPS = 120;  // Increased for better sampling
 const int   BINARY_STEPS  = 6;    // More refinement steps
 
 // Directional derivative for head-on detection
@@ -422,16 +531,19 @@ float directionalDerivative(vec3 p, vec3 dir) {
     return (phi0 - phi1) / (2.0 * h);
 }
 
-// Main raymarching function - returns color for a given ray
-vec4 traceRay(vec3 ro, vec3 dir) {
-    // Spatial jitter for anti-aliasing (when supersampling is OFF)
-    float jitter = 0.0;
-    if (uSupersampling == 0) {
-        jitter = hash13(gl_FragCoord.xyz) * 0.5;
-    }
-    
+void main() {
+    vec2 uv = (gl_FragCoord.xy / uResolution.xy) * 2.0 - 1.0;
+    uv.x *= uResolution.x / uResolution.y;
+
+    vec3 dir = normalize(
+        uCamForward +
+        uv.x * uFov * uCamRight +
+        uv.y * uFov * uCamUp
+    );
+    vec3 ro = uCamPos;
+
     // Start raymarching from camera with closer view distance
-    float t0 = 0.01 + jitter * 0.005;  // Small spatial offset
+    float t0 = 0.01;  // Small offset to avoid camera position artifacts
     float t1 = 10.0;  // View distance
 
     bool  hit = false;
@@ -460,97 +572,48 @@ vec4 traceRay(vec3 ro, vec3 dir) {
         if (havePrev) {
             float g0 = prevPhi - uIsoLevel;
             float g1 = phi     - uIsoLevel;
-            
-            // Check for rapid field change that might hide a crossing
-            float phiChange = abs(phi - prevPhi);
-            if (phiChange > 0.3 && g0 * g1 >= 0.0) {
-                // Sample midpoint to check for thin feature
-                float midT = 0.5 * (prevT + t);
-                vec3 midP = ro + dir * midT;
-                float phiMid;
-                vec3 tmpC;
-                int tmpI;
-                float tmpD;
-                evalField(midP, phiMid, tmpC, tmpI, tmpD);
-                
-                float gMid = phiMid - uIsoLevel;
-                // If midpoint has opposite sign from either end, we have a crossing
-                if (g0 * gMid < 0.0 || g1 * gMid < 0.0) {
-                    // Update to use midpoint as new boundary
-                    if (g0 * gMid < 0.0) {
-                        phi = phiMid;
-                        c = tmpC;
-                        iters = tmpI;
-                        depth = tmpD;
-                        t = midT;
-                        g1 = gMid;
-                    } else {
-                        prevPhi = phiMid;
-                        prevColor = tmpC;
-                        prevIters = tmpI;
-                        prevDepth = tmpD;
-                        prevT = midT;
-                        g0 = gMid;
-                    }
-                }
-            }
-            
             if (g0 * g1 < 0.0) {
-                // Hybrid refinement: bisection + Newton-on-ray for sharp convergence
+                // binary search in [prevT, t]
                 float a = prevT;
                 float b = t;
-                float midT = 0.5 * (a + b);
-                vec3  midP = ro + dir * midT;
-                float phiM;
-                vec3  colM;
-                int   itersM;
-                float depthM;
-                evalField(midP, phiM, colM, itersM, depthM);
                 float phiA = prevPhi;
-                
-                // 2 bisection steps to bracket tightly
-                for (int j = 0; j < 2; ++j) {
+                float phiB = phi;
+                vec3  colA = prevColor;
+                vec3  colB = c;
+                float midT = 0.0;
+                vec3  midC = c;
+                int   midIters = iters;
+                float midDepth = depth;
+
+                for (int j = 0; j < BINARY_STEPS; ++j) {
+                    midT = 0.5 * (a + b);
+                    vec3 mp = ro + dir * midT;
+                    float phiM;
+                    vec3  colM;
+                    int   itersM;
+                    float depthM;
+                    evalField(mp, phiM, colM, itersM, depthM);
+
                     float gA = phiA - uIsoLevel;
                     float gM = phiM - uIsoLevel;
+
                     if (gA * gM <= 0.0) {
                         b = midT;
+                        phiB = phiM;
+                        colB = colM;
+                        midIters = itersM;
+                        midDepth = depthM;
                     } else {
                         a = midT;
                         phiA = phiM;
+                        colA = colM;
                     }
-                    midT = 0.5 * (a + b);
-                    midP = ro + dir * midT;
-                    evalField(midP, phiM, colM, itersM, depthM);
-                }
-                
-                // 3 Newton steps along ray using directional derivative
-                for (int j = 0; j < 3; ++j) {
-                    float g = phiM - uIsoLevel;
-                    float dPsi = directionalDerivative(midP, dir);
-                    if (abs(dPsi) < 1e-4) break;
-                    float dtNewt = -g / dPsi;
-                    // Clamp to keep inside bracket
-                    dtNewt = clamp(dtNewt, -0.5*(b - a), 0.5*(b - a));
-                    midT += dtNewt;
-                    midP = ro + dir * midT;
-                    evalField(midP, phiM, colM, itersM, depthM);
+                    midC = colM;
                 }
 
                 hit = true;
                 hitT = midT;
-                
-                // Color by far-side basin for solid appearance
-                // Sample a point just past the surface to get basin color
-                float eps = 0.02; // Small offset into the basin
-                vec3 farP = midP + dir * eps;
-                float phiFar;
-                vec3 colFar;
-                int itersFar;
-                float depthFar;
-                evalField(farP, phiFar, colFar, itersFar, depthFar);
-                
-                // Use far-side color (basin beyond the boundary)
-                hitColor = applyColorScheme(colFar, itersFar, depthFar);
+                hitColor = applyColorScheme(midC, midIters, midDepth);
                 break;
             }
         }
@@ -572,25 +635,16 @@ vec4 traceRay(vec3 ro, vec3 dir) {
         // 3. Steep gradient (large gradMag)
         
         float distToIso = abs(phi - uIsoLevel);
-        float headOnFactor = max(dirDeriv, 0.05); // Lower minimum for head-on views
+        float headOnFactor = max(dirDeriv, 0.2); // Clamp to avoid too-small steps
         
         // Base step from distance to iso-surface
         float baseStep = distToIso * 0.8;
         
-        // Spatial jitter for smoother surfaces (when supersampling is OFF)
-        // Reduce jitter magnitude when near iso-surface for more stable intersection
-        float stepJitter = 1.0;
-        if (uSupersampling == 0 && distToIso > 0.1) {
-            stepJitter = 0.95 + hash13(p + vec3(float(i))) * 0.1;
-        }
-        
         // Reduce step when head-on
-        float stepSize = baseStep * headOnFactor * stepJitter;
+        float stepSize = baseStep * headOnFactor;
         
-        // Finer step limits to catch thin features
-        float minStep = (uSupersampling == 1) ? 0.001 : 0.002;
-        float maxStep = (uSupersampling == 1) ? 0.06  : 0.10;
-        stepSize = clamp(stepSize, minStep, maxStep);
+        // Clamp to reasonable range
+        stepSize = clamp(stepSize, 0.005, 0.15);
         
         t += stepSize;
     }
@@ -598,13 +652,13 @@ vec4 traceRay(vec3 ro, vec3 dir) {
     if (!hit) {
         float v = 0.3 + 0.2 * dir.y;
         vec3 bg = uBgColor * v;
-        return vec4(bg, 1.0);
+        gl_FragColor = vec4(bg, 1.0);
+        return;
     }
 
     // Normal via finite differences on phiNorm
     vec3 pHit = ro + dir * hitT;
-    float epsBase = 0.0008;
-    float eps = epsBase * (1.0 + 0.5 * abs(hitT) / 5.0); // Adaptive: tighter up close
+    float eps = 0.002;  // Slightly larger for performance
 
     float phiC; vec3 tmpC; int tmpI; float tmpD;
     evalField(pHit, phiC, tmpC, tmpI, tmpD);
@@ -677,60 +731,14 @@ vec4 traceRay(vec3 ro, vec3 dir) {
     vec3 bgColor = uBgColor * v;
     finalColor = mix(bgColor, finalColor, fogFactor);
 
-    // Smooth transparency instead of hard holes
+    // Check if color matches transparent color
     float colorDist = length(baseColor - uTransparentColor);
-    float alpha;
-    if (uTolerance <= 0.0) {
-        alpha = 1.0;
-    } else {
-        // Smooth fade: at colorDist = 0 → alpha ≈ 0, at colorDist >= uTolerance → alpha ≈ 1
-        alpha = smoothstep(0.0, uTolerance, colorDist);
+    float alpha = 1.0;
+    if (colorDist < uTolerance) {
+        alpha = 0.0; // Make transparent
     }
 
-    return vec4(finalColor * alpha, alpha);
-}
-
-// Check if we should terminate the ray early (hit solid surface)
-bool shouldTerminateRay(vec4 color) {
-    // Terminate if we hit an opaque surface (alpha > 0.95)
-    return color.a > 0.95;
-}
-
-void main() {
-    vec2 uv = (gl_FragCoord.xy / uResolution.xy) * 2.0 - 1.0;
-    uv.x *= uResolution.x / uResolution.y;
-
-    vec3 dir = normalize(
-        uCamForward +
-        uv.x * uFov * uCamRight +
-        uv.y * uFov * uCamUp
-    );
-    vec3 ro = uCamPos;
-
-    vec4 finalColor;
-    
-    if (uSupersampling == 1) {
-        // 2x2 supersampling for high quality
-        vec4 accum = vec4(0.0);
-        for (int sy = 0; sy < 2; ++sy) {
-            for (int sx = 0; sx < 2; ++sx) {
-                vec2 offset = (vec2(float(sx), float(sy)) - 0.5) / uResolution;
-                vec2 uvJit = uv + offset;
-                vec3 dirJit = normalize(
-                    uCamForward +
-                    uvJit.x * uFov * uCamRight +
-                    uvJit.y * uFov * uCamUp
-                );
-                accum += traceRay(ro, dirJit);
-            }
-        }
-        finalColor = accum * 0.25; // Average 4 samples
-    } else {
-        // Single sample per pixel
-        finalColor = traceRay(ro, dir);
-    }
-    
-    gl_FragColor = finalColor;
+    gl_FragColor = vec4(finalColor, alpha);
 }
 </script>
 
@@ -764,10 +772,37 @@ void main() {
   const bgColorPicker = document.getElementById('bgColor');
   const fogAmountSlider = document.getElementById('fogAmount');
   const fogAmountLabel = document.getElementById('fogAmountValue');
-  const autoDynamicResCheckbox = document.getElementById('autoDynamicRes');
-  const manualResScaleSlider = document.getElementById('manualResScale');
-  const manualResScaleLabel = document.getElementById('manualResScaleValue');
-  const enableSupersamplingCheckbox = document.getElementById('enableSupersampling');
+  
+  // Audio elements
+  const audioFileInput = document.getElementById('audioFile');
+  const audioPlayBtn = document.getElementById('audioPlayBtn');
+  const audioSmoothingSlider = document.getElementById('audioSmoothing');
+  const audioSmoothingLabel = document.getElementById('audioSmoothingValue');
+  const audioToQSlider = document.getElementById('audioToQ');
+  const audioToQLabel = document.getElementById('audioToQValue');
+  const audioModeQSelect = document.getElementById('audioModeQ');
+  const audioToPSlider = document.getElementById('audioToP');
+  const audioToPLabel = document.getElementById('audioToPValue');
+  const audioModePSelect = document.getElementById('audioModeP');
+  const audioToNSlider = document.getElementById('audioToN');
+  const audioToNLabel = document.getElementById('audioToNValue');
+  const audioModeNSelect = document.getElementById('audioModeN');
+  const audioToIsoSlider = document.getElementById('audioToIso');
+  const audioToIsoLabel = document.getElementById('audioToIsoValue');
+  const audioModeIsoSelect = document.getElementById('audioModeIso');
+  const beatReactiveCheckbox = document.getElementById('beatReactive');
+  const beatThresholdSlider = document.getElementById('beatThreshold');
+  const beatThresholdLabel = document.getElementById('beatThresholdValue');
+  const autoGainSlider = document.getElementById('autoGain');
+  const autoGainLabel = document.getElementById('autoGainValue');
+  const manualGainSlider = document.getElementById('manualGain');
+  const manualGainLabel = document.getElementById('manualGainValue');
+  
+  // MIDI elements
+  const midiEnableBtn = document.getElementById('midiEnableBtn');
+  const midiStatus = document.getElementById('midiStatus');
+  const midiLearnModeCheckbox = document.getElementById('midiLearnMode');
+  const midiMappingsDisplay = document.getElementById('midiMappings');
 
   let gl, program;
   const attribs = {};
@@ -787,6 +822,42 @@ void main() {
   let animating = false;
   let animTime = 0.0;
   let animStartTime = 0.0; // Absolute start time for time-based animation
+  
+  // Audio state
+  let audioContext = null;
+  let audioElement = null;
+  let analyser = null;
+  let dataArray = null;
+  let bassLevel = 0.0;
+  let midLevel = 0.0;
+  let trebleLevel = 0.0;
+  let lastBeatTime = 0;
+  
+  // Smoothed audio levels (exponential moving average)
+  let smoothedBass = 0.0;
+  let smoothedMid = 0.0;
+  let smoothedTreble = 0.0;
+  
+  // Beat detection state
+  let beatDetected = false;
+  let beatFlash = 0.0;
+  let bassHistory = [];
+  const bassHistorySize = 43; // ~1 second at 43fps
+  
+  // RMS normalization
+  let rmsLevel = 0.0;
+  let rmsHistory = [];
+  const rmsHistorySize = 10; // Faster adaptation
+  
+  // Oscillator phase for osc mode
+  let oscPhase = 0.0;
+  
+  // MIDI state
+  let midiAccess = null;
+  let midiInputs = [];
+  let midiMappings = {}; // { cc_number: { param: 'q', min: -2, max: 2 } }
+  let midiLearnMode = false;
+  let lastLearnedParam = null;
 
   // Render state for optimization
   let needsRender = true;
@@ -841,6 +912,303 @@ void main() {
     }
     return prog;
   }
+  
+  // ============ Audio Functions ============
+  
+  function initAudio(file) {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    if (audioElement) {
+      audioElement.pause();
+    }
+    
+    audioElement = new Audio();
+    audioElement.src = URL.createObjectURL(file);
+    audioElement.loop = true;
+    
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    
+    const source = audioContext.createMediaElementSource(audioElement);
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+    
+    audioPlayBtn.disabled = false;
+    audioPlayBtn.textContent = 'Play';
+  }
+  
+  function toggleAudio() {
+    if (!audioElement) return;
+    
+    if (audioElement.paused) {
+      audioElement.play();
+      audioPlayBtn.textContent = 'Pause';
+    } else {
+      audioElement.pause();
+      audioPlayBtn.textContent = 'Play';
+    }
+  }
+  
+  function analyzeAudio() {
+    if (!analyser || !dataArray) return;
+    
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Split into precise frequency bands for better isolation
+    // Bass: 20-250Hz (kick drum range)
+    // Mid: 250Hz-4kHz (snare, vocals, instruments)
+    // Treble: 4kHz+ (hi-hats, cymbals, brightness)
+    const bassEnd = Math.floor(dataArray.length * 0.05);  // Lower bass range
+    const midEnd = Math.floor(dataArray.length * 0.35);   // Wider mid range
+    
+    let bassSum = 0, midSum = 0, trebleSum = 0;
+    let totalEnergy = 0;
+    
+    // Calculate weighted sums with emphasis on lower frequencies
+    for (let i = 0; i < bassEnd; i++) {
+      const weight = 1.0 + (bassEnd - i) / bassEnd; // Weight lower frequencies more
+      bassSum += dataArray[i] * weight;
+      totalEnergy += dataArray[i];
+    }
+    for (let i = bassEnd; i < midEnd; i++) {
+      midSum += dataArray[i];
+      totalEnergy += dataArray[i];
+    }
+    for (let i = midEnd; i < dataArray.length; i++) {
+      trebleSum += dataArray[i];
+      totalEnergy += dataArray[i];
+    }
+    
+    // Normalize by bin count
+    bassLevel = bassSum / (bassEnd * 255 * 2.0); // Account for weighting
+    midLevel = midSum / ((midEnd - bassEnd) * 255);
+    trebleLevel = trebleSum / ((dataArray.length - midEnd) * 255);
+    
+    // RMS normalization for auto-gain
+    rmsLevel = Math.sqrt(totalEnergy / dataArray.length) / 255;
+    rmsHistory.push(rmsLevel);
+    if (rmsHistory.length > rmsHistorySize) rmsHistory.shift();
+    const avgRMS = rmsHistory.reduce((a, b) => a + b, 0) / rmsHistory.length;
+    const autoGain = parseFloat(autoGainSlider.value);
+    const manualGain = parseFloat(manualGainSlider.value);
+    // Target RMS of 0.4 instead of 0.3 for better response, with min threshold
+    const gainFactor = avgRMS > 0.05 ? Math.min(5.0, (0.4 / avgRMS) * autoGain) : 1.0;
+    const totalGain = gainFactor * manualGain;
+    
+    // Apply gain and clamp
+    bassLevel = Math.min(1.0, bassLevel * totalGain);
+    midLevel = Math.min(1.0, midLevel * totalGain);
+    trebleLevel = Math.min(1.0, trebleLevel * totalGain);
+    
+    // Exponential smoothing for cleaner visuals
+    const smoothing = parseFloat(audioSmoothingSlider.value);
+    smoothedBass = smoothedBass * smoothing + bassLevel * (1.0 - smoothing);
+    smoothedMid = smoothedMid * smoothing + midLevel * (1.0 - smoothing);
+    smoothedTreble = smoothedTreble * smoothing + trebleLevel * (1.0 - smoothing);
+    
+    // Advanced beat detection with adaptive threshold
+    beatFlash *= 0.85; // Decay flash
+    bassHistory.push(smoothedBass);
+    if (bassHistory.length > bassHistorySize) bassHistory.shift();
+    
+    if (bassHistory.length >= bassHistorySize) {
+      const avgBass = bassHistory.reduce((a, b) => a + b, 0) / bassHistory.length;
+      const variance = bassHistory.reduce((sum, val) => sum + Math.pow(val - avgBass, 2), 0) / bassHistory.length;
+      const threshold = parseFloat(beatThresholdSlider.value);
+      const adaptiveThreshold = avgBass + Math.sqrt(variance) * threshold;
+      
+      const now = performance.now();
+      if (smoothedBass > adaptiveThreshold && smoothedBass > 0.3 && now - lastBeatTime > 150) {
+        beatDetected = true;
+        beatFlash = 1.0;
+        lastBeatTime = now;
+      } else {
+        beatDetected = false;
+      }
+    }
+  }
+  
+  function applyAudioToParams() {
+    if (!audioElement || audioElement.paused) return;
+    
+    analyzeAudio();
+    
+    // Update oscillator phase
+    oscPhase += 0.1;
+    
+    const audioToQ = parseFloat(audioToQSlider.value);
+    const audioToP = parseFloat(audioToPSlider.value);
+    const audioToN = parseFloat(audioToNSlider.value);
+    const audioToIso = parseFloat(audioToIsoSlider.value);
+    
+    const modeQ = audioModeQSelect.value;
+    const modeP = audioModePSelect.value;
+    const modeN = audioModeNSelect.value;
+    const modeIso = audioModeIsoSelect.value;
+    
+    // Apply different modulation modes
+    function applyMode(level, amount, mode, center = 0.0) {
+      if (mode === 'add') {
+        // Additive: bipolar modulation around center
+        return (level - 0.5) * amount * 2.0;
+      } else if (mode === 'mult') {
+        // Multiplicative: scales with audio
+        return center * (level * amount);
+      } else { // 'osc'
+        // Oscillator: audio controls amplitude of sine wave
+        return Math.sin(oscPhase + level * Math.PI * 2) * amount * level;
+      }
+    }
+    
+    let qMod = applyMode(smoothedBass, audioToQ, modeQ, 0.0);
+    let pMod = applyMode(smoothedMid, audioToP, modeP, 0.0);
+    let nMod = applyMode(smoothedTreble, audioToN, modeN, 1.0);
+    let isoMod = applyMode(smoothedBass, audioToIso, modeIso, 0.0);
+    
+    // Add beat-reactive brightness flash
+    let brightnessMod = 0.0;
+    if (beatReactiveCheckbox.checked && beatFlash > 0.01) {
+      brightnessMod = beatFlash * 0.5; // Flash on beat
+    }
+    
+    return {
+      qMod,
+      pMod,
+      nMod,
+      isoMod,
+      brightnessMod
+    };
+  }
+  
+  // ============ MIDI Functions ============
+  
+  async function enableMIDI() {
+    try {
+      midiAccess = await navigator.requestMIDIAccess();
+      midiStatus.textContent = 'MIDI enabled';
+      
+      // Process existing inputs
+      midiInputs = Array.from(midiAccess.inputs.values());
+      if (midiInputs.length > 0) {
+        midiStatus.textContent = `Connected: ${midiInputs.length} device(s)`;
+        midiInputs.forEach(input => {
+          input.onmidimessage = handleMIDIMessage;
+        });
+      } else {
+        midiStatus.textContent = 'No MIDI devices found';
+      }
+      
+      // Listen for hot-plug
+      midiAccess.onstatechange = (e) => {
+        if (e.port.type === 'input') {
+          midiInputs = Array.from(midiAccess.inputs.values());
+          if (midiInputs.length > 0) {
+            midiStatus.textContent = `Connected: ${midiInputs.length} device(s)`;
+            e.port.onmidimessage = handleMIDIMessage;
+          } else {
+            midiStatus.textContent = 'No MIDI devices found';
+          }
+        }
+      };
+    } catch (err) {
+      console.error('MIDI access failed:', err);
+      midiStatus.textContent = 'MIDI not available';
+    }
+  }
+  
+  function handleMIDIMessage(event) {
+    const [status, cc, value] = event.data;
+    
+    // Only handle CC messages (0xB0-0xBF)
+    if ((status & 0xF0) !== 0xB0) return;
+    
+    // Learn mode: map this CC to the last touched parameter
+    if (midiLearnMode && lastLearnedParam) {
+      const slider = getSliderByParam(lastLearnedParam);
+      if (slider) {
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        midiMappings[cc] = { param: lastLearnedParam, min, max };
+        updateMIDIMappingsDisplay();
+        midiLearnMode = false;
+        midiLearnModeCheckbox.checked = false;
+        lastLearnedParam = null;
+      }
+      return;
+    }
+    
+    // Apply existing mapping
+    const mapping = midiMappings[cc];
+    if (mapping) {
+      const normalized = value / 127.0;
+      const mappedValue = mapping.min + normalized * (mapping.max - mapping.min);
+      
+      const slider = getSliderByParam(mapping.param);
+      const label = getLabelByParam(mapping.param);
+      if (slider && label) {
+        slider.value = mappedValue;
+        if (mapping.param === 'n' || mapping.param === 'iso' || mapping.param === 'tolerance' || mapping.param === 'fog') {
+          label.textContent = mappedValue.toFixed(2);
+        } else if (mapping.param === 'brightness' || mapping.param === 'contrast') {
+          label.textContent = mappedValue.toFixed(1);
+        } else {
+          label.textContent = mappedValue.toFixed(2);
+        }
+        needsRender = true;
+      }
+    }
+  }
+  
+  function getSliderByParam(param) {
+    const map = {
+      'q': qSlider,
+      'p': pSlider,
+      'n': nSlider,
+      'iso': isoSlider,
+      'brightness': brightnessSlider,
+      'contrast': contrastSlider,
+      'fog': fogAmountSlider,
+      'tolerance': toleranceSlider
+    };
+    return map[param] || null;
+  }
+  
+  function getLabelByParam(param) {
+    const map = {
+      'q': qLabel,
+      'p': pLabel,
+      'n': nLabel,
+      'iso': isoLabel,
+      'brightness': brightnessLabel,
+      'contrast': contrastLabel,
+      'fog': fogAmountLabel,
+      'tolerance': toleranceLabel
+    };
+    return map[param] || null;
+  }
+  
+  function updateMIDIMappingsDisplay() {
+    const entries = Object.entries(midiMappings);
+    if (entries.length === 0) {
+      midiMappingsDisplay.textContent = 'No mappings';
+      return;
+    }
+    
+    midiMappingsDisplay.innerHTML = entries.map(([cc, mapping]) => 
+      `CC${cc} → ${mapping.param}`
+    ).join('<br>');
+  }
+  
+  function trackParamInteraction(paramName) {
+    if (midiLearnMode) {
+      lastLearnedParam = paramName;
+      midiStatus.textContent = `Waiting for CC (${paramName})...`;
+    }
+  }
 
   function initGL() {
     gl = canvas.getContext('webgl');
@@ -865,6 +1233,7 @@ void main() {
     uniforms.uIsoLevel   = gl.getUniformLocation(program, 'uIsoLevel');
     uniforms.uQ          = gl.getUniformLocation(program, 'uQ');
     uniforms.uP          = gl.getUniformLocation(program, 'uP');
+    uniforms.uTime       = gl.getUniformLocation(program, 'uTime');
     uniforms.uTransparentColor = gl.getUniformLocation(program, 'uTransparentColor');
     uniforms.uTolerance  = gl.getUniformLocation(program, 'uTolerance');
     uniforms.uFunction   = gl.getUniformLocation(program, 'uFunction');
@@ -875,8 +1244,6 @@ void main() {
     uniforms.uContrast = gl.getUniformLocation(program, 'uContrast');
     uniforms.uBgColor = gl.getUniformLocation(program, 'uBgColor');
     uniforms.uFogAmount = gl.getUniformLocation(program, 'uFogAmount');
-    uniforms.uTime = gl.getUniformLocation(program, 'uTime');
-    uniforms.uSupersampling = gl.getUniformLocation(program, 'uSupersampling');
 
     const quadVerts = new Float32Array([
       -1, -1,
@@ -1004,37 +1371,30 @@ void main() {
     // Update target FPS from slider
     targetFPS = parseFloat(fpsTargetSlider.value);
 
-    // FPS tracking and dynamic resolution adjustment (only if auto is enabled)
-    const autoDynamicRes = autoDynamicResCheckbox.checked;
-    
-    if (autoDynamicRes) {
-      frameCount++;
-      const timeSinceCheck = now - fpsCheckTime;
-      if (timeSinceCheck > 200) { // Check every 200ms for faster response
-        const currentFPS = (frameCount / timeSinceCheck) * 1000;
-        fpsHistory.push(currentFPS);
-        if (fpsHistory.length > fpsHistorySize) {
-          fpsHistory.shift();
-        }
-        
-        // Calculate average FPS
-        const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
-        
-        // Adjust resolution scale based on FPS - more aggressive
-        if (avgFPS < targetFPS * 0.85 && resolutionScale > minScale) {
-          resolutionScale = Math.max(minScale, resolutionScale - 0.15);
-          console.log(`FPS: ${avgFPS.toFixed(1)} - Reducing resolution to ${(resolutionScale * 100).toFixed(0)}%`);
-        } else if (avgFPS > targetFPS * 1.1 && resolutionScale < maxScale) {
-          resolutionScale = Math.min(maxScale, resolutionScale + 0.05);
-          console.log(`FPS: ${avgFPS.toFixed(1)} - Increasing resolution to ${(resolutionScale * 100).toFixed(0)}%`);
-        }
-        
-        frameCount = 0;
-        fpsCheckTime = now;
+    // FPS tracking and dynamic resolution adjustment
+    frameCount++;
+    const timeSinceCheck = now - fpsCheckTime;
+    if (timeSinceCheck > 200) { // Check every 200ms for faster response
+      const currentFPS = (frameCount / timeSinceCheck) * 1000;
+      fpsHistory.push(currentFPS);
+      if (fpsHistory.length > fpsHistorySize) {
+        fpsHistory.shift();
       }
-    } else {
-      // Use manual resolution scale
-      resolutionScale = parseFloat(manualResScaleSlider.value);
+      
+      // Calculate average FPS
+      const avgFPS = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+      
+      // Adjust resolution scale based on FPS - more aggressive
+      if (avgFPS < targetFPS * 0.85 && resolutionScale > minScale) {
+        resolutionScale = Math.max(minScale, resolutionScale - 0.15);
+        console.log(`FPS: ${avgFPS.toFixed(1)} - Reducing resolution to ${(resolutionScale * 100).toFixed(0)}%`);
+      } else if (avgFPS > targetFPS * 1.1 && resolutionScale < maxScale) {
+        resolutionScale = Math.min(maxScale, resolutionScale + 0.05);
+        console.log(`FPS: ${avgFPS.toFixed(1)} - Increasing resolution to ${(resolutionScale * 100).toFixed(0)}%`);
+      }
+      
+      frameCount = 0;
+      fpsCheckTime = now;
     }
 
     // Update animation time - use absolute time for consistent speed
@@ -1043,6 +1403,14 @@ void main() {
       needsRender = true;
     }
 
+    // Apply audio modulation
+    const audioMods = applyAudioToParams();
+    
+    // Force render if audio is active
+    if (audioMods) {
+      needsRender = true;
+    }
+    
     // Check if parameters changed
     const currentParams = {
       n: parseFloat(nSlider.value),
@@ -1081,18 +1449,34 @@ void main() {
       
       // Use actual render resolution
       gl.uniform2f(uniforms.uResolution, renderWidth, renderHeight);
-      gl.uniform1f(uniforms.uNRange, currentParams.n);
-      gl.uniform1f(uniforms.uIsoLevel, currentParams.iso);
+      
+      // Apply audio modulation to parameters
+      let nValue = currentParams.n;
+      let isoValue = currentParams.iso;
+      let qValue = currentParams.q;
+      let pValue = currentParams.p;
+      
+      if (audioMods) {
+        qValue += audioMods.qMod;
+        pValue += audioMods.pMod;
+        nValue += audioMods.nMod;
+        isoValue += audioMods.isoMod;
+      }
+      
+      gl.uniform1f(uniforms.uNRange, nValue);
+      gl.uniform1f(uniforms.uIsoLevel, isoValue);
+      
+      // Upload time for time-varying functions
+      gl.uniform1f(uniforms.uTime, now / 1000.0); // Time in seconds
       
       // Apply animation to q parameter if active
-      let qValue = currentParams.q;
       if (animating) {
         const speed = parseFloat(speedSlider.value);
         qValue = Math.sin(animTime * speed) * 1.5;
         qLabel.textContent = qValue.toFixed(2);
       }
       gl.uniform1f(uniforms.uQ, qValue);
-      gl.uniform1f(uniforms.uP, currentParams.p);
+      gl.uniform1f(uniforms.uP, pValue);
       
       // Set transparent color and tolerance
       const rgbColor = hexToRgb(colorPicker.value);
@@ -1105,21 +1489,23 @@ void main() {
       const solidRgb = hexToRgb(solidColorPicker.value);
       gl.uniform3fv(uniforms.uSolidColor, solidRgb);
       gl.uniform1i(uniforms.uShadingMode, parseInt(shadingModeSelect.value));
-      gl.uniform1f(uniforms.uBrightness, parseFloat(brightnessSlider.value));
+      
+      // Apply brightness with beat-reactive modulation
+      let brightnessValue = parseFloat(brightnessSlider.value);
+      if (audioMods && audioMods.brightnessMod) {
+        brightnessValue += audioMods.brightnessMod;
+      }
+      gl.uniform1f(uniforms.uBrightness, brightnessValue);
       gl.uniform1f(uniforms.uContrast, parseFloat(contrastSlider.value));
       
       // Background and fog
       const bgRgb = hexToRgb(bgColorPicker.value);
       gl.uniform3fv(uniforms.uBgColor, bgRgb);
       gl.uniform1f(uniforms.uFogAmount, parseFloat(fogAmountSlider.value));
-      
-      // Update time and supersampling
-      gl.uniform1f(uniforms.uTime, now * 0.001); // Convert to seconds
-      gl.uniform1i(uniforms.uSupersampling, enableSupersamplingCheckbox.checked ? 1 : 0);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       
-      needsRender = animating; // Keep rendering during animation
+      needsRender = animating || (audioElement && !audioElement.paused); // Keep rendering during animation or audio
     }
 
     requestAnimationFrame(render);
@@ -1129,18 +1515,22 @@ void main() {
 
   nSlider.addEventListener('input', () => {
     nLabel.textContent = parseFloat(nSlider.value).toFixed(2);
+    trackParamInteraction('n');
     needsRender = true;
   });
   isoSlider.addEventListener('input', () => {
     isoLabel.textContent = parseFloat(isoSlider.value).toFixed(2);
+    trackParamInteraction('iso');
     needsRender = true;
   });
   qSlider.addEventListener('input', () => {
     qLabel.textContent = parseFloat(qSlider.value).toFixed(2);
+    trackParamInteraction('q');
     needsRender = true;
   });
   pSlider.addEventListener('input', () => {
     pLabel.textContent = parseFloat(pSlider.value).toFixed(2);
+    trackParamInteraction('p');
     needsRender = true;
   });
   speedSlider.addEventListener('input', () => {
@@ -1151,6 +1541,7 @@ void main() {
   });
   toleranceSlider.addEventListener('input', () => {
     toleranceLabel.textContent = parseFloat(toleranceSlider.value).toFixed(2);
+    trackParamInteraction('tolerance');
     needsRender = true;
   });
   
@@ -1176,11 +1567,13 @@ void main() {
 
   brightnessSlider.addEventListener('input', () => {
     brightnessLabel.textContent = parseFloat(brightnessSlider.value).toFixed(1);
+    trackParamInteraction('brightness');
     needsRender = true;
   });
 
   contrastSlider.addEventListener('input', () => {
     contrastLabel.textContent = parseFloat(contrastSlider.value).toFixed(1);
+    trackParamInteraction('contrast');
     needsRender = true;
   });
 
@@ -1190,20 +1583,7 @@ void main() {
 
   fogAmountSlider.addEventListener('input', () => {
     fogAmountLabel.textContent = parseFloat(fogAmountSlider.value).toFixed(2);
-    needsRender = true;
-  });
-
-  autoDynamicResCheckbox.addEventListener('change', () => {
-    manualResScaleSlider.disabled = autoDynamicResCheckbox.checked;
-    needsRender = true;
-  });
-
-  manualResScaleSlider.addEventListener('input', () => {
-    manualResScaleLabel.textContent = (parseFloat(manualResScaleSlider.value) * 100).toFixed(0) + '%';
-    needsRender = true;
-  });
-
-  enableSupersamplingCheckbox.addEventListener('change', () => {
+    trackParamInteraction('fog');
     needsRender = true;
   });
 
@@ -1249,6 +1629,60 @@ void main() {
     needsRender = true;
   });
 
+  // Audio event listeners
+  audioFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      initAudio(file);
+    }
+  });
+  
+  audioPlayBtn.addEventListener('click', toggleAudio);
+  
+  audioSmoothingSlider.addEventListener('input', () => {
+    audioSmoothingLabel.textContent = parseFloat(audioSmoothingSlider.value).toFixed(2);
+  });
+  
+  audioToQSlider.addEventListener('input', () => {
+    audioToQLabel.textContent = parseFloat(audioToQSlider.value).toFixed(1);
+  });
+  
+  audioToPSlider.addEventListener('input', () => {
+    audioToPLabel.textContent = parseFloat(audioToPSlider.value).toFixed(1);
+  });
+  
+  audioToNSlider.addEventListener('input', () => {
+    audioToNLabel.textContent = parseFloat(audioToNSlider.value).toFixed(1);
+  });
+  
+  audioToIsoSlider.addEventListener('input', () => {
+    audioToIsoLabel.textContent = parseFloat(audioToIsoSlider.value).toFixed(2);
+  });
+  
+  beatThresholdSlider.addEventListener('input', () => {
+    beatThresholdLabel.textContent = parseFloat(beatThresholdSlider.value).toFixed(2);
+  });
+  
+  autoGainSlider.addEventListener('input', () => {
+    autoGainLabel.textContent = parseFloat(autoGainSlider.value).toFixed(1);
+  });
+  
+  manualGainSlider.addEventListener('input', () => {
+    manualGainLabel.textContent = parseFloat(manualGainSlider.value).toFixed(1);
+  });
+  
+  // MIDI event listeners
+  midiEnableBtn.addEventListener('click', enableMIDI);
+  midiLearnModeCheckbox.addEventListener('change', () => {
+    midiLearnMode = midiLearnModeCheckbox.checked;
+    if (midiLearnMode) {
+      midiStatus.textContent = 'Learn mode: touch a slider...';
+    } else {
+      midiStatus.textContent = midiAccess ? `Connected: ${midiInputs.length} device(s)` : 'Not connected';
+      lastLearnedParam = null;
+    }
+  });
+  
   window.addEventListener('resize', resize);
 
   // init
