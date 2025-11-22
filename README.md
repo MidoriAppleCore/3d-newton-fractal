@@ -28,4 +28,4 @@ Viewed this way, the full collection of points $(x,y,t)$ for which $x + iy$ lies
 
 
 
-from what I undestand, this is a view of the global Newton method's structure over some set of holomorphic variations of some function e.g. we are graphing holomorphic parameter varied versions of a function over a spacial-z axis
+from what I undestand, this is a view of the global Newton method's structure over some set of holomorphic variations of some function e.g. we are graphing holomorphic parameter varied versions of a function over a spacial-z axis as they are effected by newton's method
