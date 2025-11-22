@@ -24,3 +24,8 @@ If we interpret $t$ as a spatial coordinate — the **z-axis** — while the com
 
 Viewed this way, the full collection of points $(x,y,t)$ for which $x + iy$ lies in the Newton fractal for parameter $t$ forms a continuous surface-like object in 3D space. This can be regarded as a **worldsheet** traced out by the evolution of the Newton fractal as the parameter $t$ varies.
 
+
+
+
+
+from what I undestand, this is a view of the global Newton method's structure over soem set of holomorphic variations of some function e.g. we are graphing holomorphic parameter varied versions of a function over a spacial-z axis
