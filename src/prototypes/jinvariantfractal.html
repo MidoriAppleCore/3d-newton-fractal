@@ -1,0 +1,366 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J-Invariant Homotopy Fractal (Complex)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        #container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #0d1117;
+            overflow: hidden;
+        }
+        canvas { display: block; }
+        /* Custom scrollbar for Webkit */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans antialiased">
+
+    <div id="container"></div>
+
+    <div id="ui-overlay" class="absolute top-0 left-0 p-4 m-4 bg-gray-800/90 rounded-lg shadow-2xl backdrop-blur-sm text-white w-80 max-h-[90vh] overflow-y-auto">
+        <h1 class="text-xl font-bold mb-2 text-cyan-400">J-Invariant Homotopy</h1>
+        <p class="text-xs text-gray-300 mb-4">
+            Solving $j(\tau) - \mu = 0$. <br>
+            "Ride" the roots by adjusting complex $\mu$.
+        </p>
+        
+        <div class="flex flex-col space-y-4 text-sm">
+            <!-- Domain Info -->
+            <div id="tau-range" class="space-y-1"></div>
+
+            <!-- COLOR MODE SELECTOR -->
+            <div class="bg-gray-700/50 p-2 rounded border border-gray-600">
+                <label class="block font-mono text-xs mb-1 text-gray-400">Color Mode</label>
+                <select id="color-mode" class="w-full bg-gray-800 text-white text-xs rounded p-1 border border-gray-600 focus:outline-none focus:border-cyan-500">
+                    <option value="0">Root Basins (Basin ID)</option>
+                    <option value="1">Convergence Speed (Iterations)</option>
+                    <option value="2">Hybrid (Root + Bands)</option>
+                </select>
+            </div>
+
+            <!-- MU REAL SLIDER -->
+            <div class="bg-gray-700/50 p-2 rounded border border-gray-600">
+                <label class="block font-mono text-xs mb-1 text-gray-400">Re($\mu$) Target</label>
+                <div class="flex items-center space-x-2">
+                    <input type="range" id="mu-re-slider" min="-20000" max="20000" step="1" value="0" class="flex-grow h-1 bg-cyan-900 rounded-lg appearance-none cursor-pointer">
+                    <span id="mu-re-value" class="font-mono text-xs text-cyan-300 w-16 text-right">0</span>
+                </div>
+            </div>
+
+            <!-- MU IMAGINARY SLIDER -->
+            <div class="bg-gray-700/50 p-2 rounded border border-gray-600">
+                <label class="block font-mono text-xs mb-1 text-gray-400">Im($\mu$) Target</label>
+                <div class="flex items-center space-x-2">
+                    <input type="range" id="mu-im-slider" min="-20000" max="20000" step="1" value="0" class="flex-grow h-1 bg-purple-900 rounded-lg appearance-none cursor-pointer">
+                    <span id="mu-im-value" class="font-mono text-xs text-purple-300 w-16 text-right">0</span>
+                </div>
+            </div>
+
+            <!-- PRECISION SLIDER -->
+            <div class="bg-gray-700/50 p-2 rounded border border-gray-600">
+                <label class="block font-mono text-xs mb-1 text-gray-400">Precision (Log $\epsilon$)</label>
+                <div class="flex items-center space-x-2">
+                    <input type="range" id="prec-slider" min="-7.0" max="-1.0" step="0.1" value="-4.0" class="flex-grow h-1 bg-green-900 rounded-lg appearance-none cursor-pointer">
+                    <span id="prec-value" class="font-mono text-xs text-green-300 w-16 text-right">1e-4</span>
+                </div>
+            </div>
+
+            <div class="text-xs text-gray-500 pt-2 border-t border-gray-700">
+                <p>Pan: Drag | Zoom: Scroll</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, mesh, uniforms;
+        let isDragging = false;
+        let lastMouseX = 0, lastMouseY = 0;
+        
+        // Initial parameters
+        const initialDomain = {
+            reCenter: 0.0,
+            imCenter: 1.2,
+            width: 2.5, 
+            muRe: 0.0,
+            muIm: 0.0,
+            precisionLog: -4.0,
+            colorMode: 0
+        };
+        let domain = { ...initialDomain };
+
+        const vertexShader = `
+            void main() {
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            precision highp float;
+
+            uniform vec2 u_resolution;
+            uniform vec2 u_center;
+            uniform float u_zoom;
+            uniform vec2 u_mu; // Complex Mu (Re, Im)
+            uniform float u_epsilon; // Convergence threshold
+            uniform int u_color_mode; // 0=Basins, 1=Speed, 2=Hybrid
+
+            const float PI = 3.14159265359;
+            const int MAX_ITERATIONS = 100;
+
+            struct Complex { float re; float im; };
+
+            Complex cAdd(Complex a, Complex b) { return Complex(a.re + b.re, a.im + b.im); }
+            Complex cSub(Complex a, Complex b) { return Complex(a.re - b.re, a.im - b.im); }
+            Complex cMul(Complex a, Complex b) { return Complex(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re); }
+            Complex cSMul(Complex a, float s) { return Complex(a.re * s, a.im * s); }
+            
+            Complex cDiv(Complex a, Complex b) {
+                float den = b.re * b.re + b.im * b.im;
+                if (den == 0.0) return Complex(0.0, 0.0);
+                return Complex((a.re * b.re + a.im * b.im) / den, (a.im * b.re - a.re * b.im) / den);
+            }
+
+            Complex cExp(Complex z) {
+                float r = exp(z.re);
+                return Complex(r * cos(z.im), r * sin(z.im));
+            }
+
+            // j(tau) approximation
+            Complex jInvariant(Complex tau, out Complex q) {
+                Complex T1 = cMul(Complex(0.0, 2.0 * PI), tau);
+                q = cExp(T1);
+                Complex q_inv = cDiv(Complex(1.0, 0.0), q);
+                Complex q2 = cMul(q, q);
+                
+                // j ~ 1/q + 744 + 196884q + 21493760q^2
+                Complex res = cAdd(q_inv, Complex(744.0, 0.0));
+                res = cAdd(res, cSMul(q, 196884.0));
+                res = cAdd(res, cSMul(q2, 21493760.0));
+                return res;
+            }
+
+            // j'(tau) approximation
+            Complex jPrime(Complex q) {
+                Complex q_inv = cDiv(Complex(1.0, 0.0), q);
+                Complex q2 = cMul(q, q);
+                
+                // term inside: -1/q + 196884q + ...
+                Complex sum = cSMul(q_inv, -1.0);
+                sum = cAdd(sum, cSMul(q, 196884.0));
+                sum = cAdd(sum, cSMul(q2, 42987520.0)); // 2 * 21493760
+                
+                // * 2*pi*i
+                return cMul(Complex(0.0, 2.0 * PI), sum);
+            }
+
+            vec3 hsv2rgb(vec3 c) {
+                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                return c.z * mix(K.xxx, clamp(p - 1.0, 0.0, 1.0), c.y);
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
+                float aspect = u_resolution.x / u_resolution.y;
+                
+                float re_tau = u_center.x + uv.x * u_zoom * 0.5 * aspect;
+                float im_tau = u_center.y + uv.y * u_zoom * 0.5;
+
+                // Black out lower half plane for clarity
+                if (im_tau <= 0.0) {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                }
+
+                Complex current_tau = Complex(re_tau, im_tau);
+                int iter = 0;
+                Complex final_root = current_tau;
+
+                for (int i = 0; i < MAX_ITERATIONS; i++) {
+                    Complex q;
+                    Complex j_val = jInvariant(current_tau, q);
+                    
+                    // f(tau) = j(tau) - mu
+                    Complex f_val = cSub(j_val, Complex(u_mu.x, u_mu.y));
+
+                    // Check divergence/escape
+                    if (current_tau.im < 0.001 || length(vec2(f_val.re, f_val.im)) > 1e7) {
+                        iter = MAX_ITERATIONS;
+                        break;
+                    }
+
+                    // Check convergence
+                    if (length(vec2(f_val.re, f_val.im)) < u_epsilon) { // Checking |f(tau)| close to 0
+                        iter = i;
+                        final_root = current_tau;
+                        break;
+                    }
+
+                    Complex der = jPrime(q);
+                    Complex step = cDiv(f_val, der);
+                    current_tau = cSub(current_tau, step);
+                }
+
+                if (iter == MAX_ITERATIONS) {
+                    gl_FragColor = vec4(0.1, 0.1, 0.1, 1.0);
+                } else {
+                    float root_id = final_root.re;
+                    float hue_basin = fract(root_id); 
+                    hue_basin = fract(hue_basin + final_root.im * 0.1);
+
+                    // Speed factor (0.0 to 1.0, where 1.0 is fast)
+                    float speed = 1.0 - (float(iter) / float(MAX_ITERATIONS));
+                    
+                    if (u_color_mode == 0) {
+                        // MODE 0: Root Basins
+                        // Hue = Root ID
+                        // Val = Speed (Shading)
+                        float val = pow(speed, 0.5); 
+                        gl_FragColor = vec4(hsv2rgb(vec3(hue_basin, 0.7, val)), 1.0);
+
+                    } else if (u_color_mode == 1) {
+                        // MODE 1: Convergence Speed (Classic Fractal)
+                        // Hue = Iteration count
+                        // Sat = High
+                        float hue_speed = mod(float(iter) * 0.05, 1.0); // Cycle colors every 20 iterations
+                        gl_FragColor = vec4(hsv2rgb(vec3(hue_speed, 0.8, 1.0)), 1.0);
+
+                    } else {
+                        // MODE 2: Hybrid
+                        // Hue = Root ID
+                        // Lightness bands based on speed
+                        float bands = 0.5 + 0.5 * sin(float(iter) * 0.5);
+                        gl_FragColor = vec4(hsv2rgb(vec3(hue_basin, 0.8, bands)), 1.0);
+                    }
+                }
+            }
+        `;
+
+        function init() {
+            const container = document.getElementById('container');
+            const muReSlider = document.getElementById('mu-re-slider');
+            const muImSlider = document.getElementById('mu-im-slider');
+            const precSlider = document.getElementById('prec-slider');
+            const colorModeSel = document.getElementById('color-mode');
+            
+            const muReVal = document.getElementById('mu-re-value');
+            const muImVal = document.getElementById('mu-im-value');
+            const precVal = document.getElementById('prec-value');
+
+            renderer = new THREE.WebGLRenderer({ antialias: false });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+            camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+            uniforms = {
+                u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                u_center: { value: new THREE.Vector2(domain.reCenter, domain.imCenter) },
+                u_zoom: { value: domain.width },
+                u_mu: { value: new THREE.Vector2(domain.muRe, domain.muIm) },
+                u_epsilon: { value: Math.pow(10, domain.precisionLog) },
+                u_color_mode: { value: domain.colorMode }
+            };
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader
+            });
+
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+            scene.add(mesh);
+
+            // Listeners
+            window.addEventListener('resize', () => {
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+                updateUI();
+            });
+
+            // Mouse Interaction
+            renderer.domElement.addEventListener('mousedown', e => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+            document.addEventListener('mouseup', () => isDragging = false);
+            renderer.domElement.addEventListener('mousemove', e => {
+                if (!isDragging) return;
+                const scale = uniforms.u_zoom.value / window.innerHeight;
+                const aspect = window.innerWidth / window.innerHeight;
+                domain.reCenter -= (e.clientX - lastMouseX) * scale * aspect;
+                domain.imCenter += (e.clientY - lastMouseY) * scale;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                updateUniforms();
+            });
+            renderer.domElement.addEventListener('wheel', e => {
+                e.preventDefault();
+                domain.width *= (e.deltaY > 0 ? 1.1 : 0.909);
+                updateUniforms();
+            });
+
+            // Sliders
+            const updateMu = () => {
+                domain.muRe = parseFloat(muReSlider.value);
+                domain.muIm = parseFloat(muImSlider.value);
+                muReVal.innerText = domain.muRe;
+                muImVal.innerText = domain.muIm;
+                uniforms.u_mu.value.set(domain.muRe, domain.muIm);
+            };
+
+            muReSlider.addEventListener('input', updateMu);
+            muImSlider.addEventListener('input', updateMu);
+
+            precSlider.addEventListener('input', () => {
+                const val = parseFloat(precSlider.value);
+                const eps = Math.pow(10, val);
+                uniforms.u_epsilon.value = eps;
+                precVal.innerText = eps.toExponential(1);
+            });
+            
+            colorModeSel.addEventListener('change', () => {
+                domain.colorMode = parseInt(colorModeSel.value);
+                uniforms.u_color_mode.value = domain.colorMode;
+            });
+
+            updateUniforms();
+            animate();
+        }
+
+        function updateUniforms() {
+            uniforms.u_center.value.set(domain.reCenter, domain.imCenter);
+            uniforms.u_zoom.value = domain.width;
+            updateUI();
+        }
+
+        function updateUI() {
+            // Update range text if needed
+            const r = document.getElementById('tau-range');
+            r.innerHTML = `
+                <div class="flex justify-between text-xs text-gray-500">
+                    <span>Re: ${domain.reCenter.toFixed(2)}</span>
+                    <span>Im: ${domain.imCenter.toFixed(2)}</span>
+                    <span>Zm: ${domain.width.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
